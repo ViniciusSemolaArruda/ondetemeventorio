@@ -1,29 +1,32 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
+// app/_layout.tsx
+import { Slot } from "expo-router"
+import { StyleSheet } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { AuthProvider } from "../context/AuthContext"
+import { MenuProvider } from "../context/MenuContext"
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+    <AuthProvider>
+      <MenuProvider>
+        {/* Área superior (status bar) com fundo laranja */}
+        <SafeAreaView edges={["top"]} style={styles.safeTop} />
+
+        {/* Área inferior (conteúdo) com fundo preto */}
+        <SafeAreaView edges={["left", "right", "bottom"]} style={styles.safeBottom}>
+          <Slot />
+        </SafeAreaView>
+      </MenuProvider>
+    </AuthProvider>
+  )
 }
+
+const styles = StyleSheet.create({
+  safeTop: {
+    backgroundColor: "#000", // topo laranja
+  },
+  safeBottom: {
+    flex: 1,
+    backgroundColor: "#000", // fundo preto
+  },
+})

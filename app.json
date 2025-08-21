@@ -16,12 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "edgeToEdgeEnabled": true,
+      "package": "com.capadocia.ondetemeventorio"
     },
     "plugins": [
       "expo-router",
@@ -33,10 +29,21 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "viniciusarruda",
+    "extra": {
+      "API_BASE_URL": "https://ondetemeventorio.vercel.app",
+      "GOOGLE_CLIENT_ID": "130486548338-89l6lucgtp5670uvu855dndetfiq8eo6.apps.googleusercontent.com",
+      "GOOGLE_ANDROID_CLIENT_ID": "130486548338-i7m9ts9maegg20to0ji86vau48p5rdad.apps.googleusercontent.com",
+      "router": {},
+      "eas": {
+        "projectId": "31fd7ad0-f649-4047-a9d9-f8ebd6e675d8"
+      }
     }
   }
 }
