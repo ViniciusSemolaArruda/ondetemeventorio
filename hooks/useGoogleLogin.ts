@@ -1,4 +1,4 @@
-// utils/auth.ts (ou hooks/useGoogleAuth.ts)
+//hooks\useGoogleLogin.ts
 import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import Constants from 'expo-constants';
@@ -25,7 +25,10 @@ const SLUG = Constants.expoConfig?.slug ?? 'ondetemeventorio';
 // Proxy do Expo (para Expo Go)
 const EXPO_PROXY_REDIRECT = `https://auth.expo.dev/@${OWNER}/${SLUG}`;
 // Scheme (para build nativa)
-const NATIVE_REDIRECT = makeRedirectUri({ scheme: 'ondetemeventorio' });
+const NATIVE_REDIRECT = makeRedirectUri({
+  native: `com.googleusercontent.apps.${ANDROID_CLIENT_ID.replace('.apps.googleusercontent.com', '')}:/oauthredirect`
+});
+
 
 export function useGoogleAuth() {
   const isExpoGo = Constants.appOwnership === 'expo';

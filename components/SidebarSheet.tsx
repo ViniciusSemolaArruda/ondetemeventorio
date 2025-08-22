@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
-import { logout, useGoogleAuth } from '../utils/auth';
+import { logout, useGoogleAuth } from '../hooks/useGoogleLogin';
 
 export default function SidebarSheet() {
   const { user } = useAuth();

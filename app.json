@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ondetemeventorio",
+    "scheme": "com.googleusercontent.apps.130486548338-i7m9ts9maegg20to0ji86vau48p5rdad",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
