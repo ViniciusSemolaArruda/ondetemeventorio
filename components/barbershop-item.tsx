@@ -33,7 +33,7 @@ export default function BarbershopItem({
 
   const toggleLike = async () => {
     if (!isLoggedIn) {
-      alert("Você precisa estar logado para curtir.");
+      alert("Você precisa estar logado.");
       return;
     }
 

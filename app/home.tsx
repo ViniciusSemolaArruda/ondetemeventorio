@@ -1,17 +1,17 @@
-// IMPORTS
 import { Feather } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   Image,
+  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 
 import Banner from "@/components/Banner";
 import BarbershopCarousel from "@/components/barbershop-carousel";
@@ -19,166 +19,46 @@ import Calendar from "@/components/Calendar";
 import EventosGrid from "@/components/EventosGrid";
 import Footer from "@/components/footer";
 import Header from "@/components/Header";
-import { EventMapItem } from "@/components/MapRJ";
+import MapRJ from "@/components/MapRJ";
 import Search from "@/components/search";
-import SidebarSheet from "@/components/SidebarSheet";
 import { quickSearchOptions } from "@/constants/search";
-import { useMenu } from "@/context/MenuContext";
+import { useAuth } from "@/context/AuthContext";
 import { useBanners } from "@/hooks/useBanners";
-import { Barbershop } from "@/types/barbershop";
+import { ApiEvent, apiHelpers } from "@/lib/api";
+import { useRouter } from "expo-router";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import EventFixCarousel from "@/components/EventFixCarousel";
+import MusicEventsCarousel from "@/components/MusicEventsCarousel";
 
-export default function Home() {
-  const [session, setSession] = useState<{ user?: { name: string } } | null>(null);
-  const [barbershops, setBarbershops] = useState<Barbershop[]>([]);
-  const [events, setEvents] = useState<EventMapItem[]>([]);
-  const { isOpen, closeMenu } = useMenu();
-  const { banners, loading: loadingBanners } = useBanners();
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-  useEffect(() => {
-    setSession({ user: { name: "Vinicius" } });
+type EventMapItem = {
+  id: string;
+  name: string;
+  address: string | null;
+  imageUrl: string | null;
+  lat: number;
+  lng: number;
+};
 
-    fetch("https://ondetemeventorio.vercel.app/api/events")
-      .then((res) => res.json())
-      .then((data) => {
-        setBarbershops(data);
+/* === Mesmas categorias musicais do web === */
+const MUSIC_CATEGORIES = [
+  "Carnaval",
+  "Rodas de Samba",
+  "Bossa Nova",
+  "Passinho",
+  "Funk",
+  "Eletrônica",
+  "Forró",
+  "MPB",
+  "Rock",
+  "Blues",
+  "Jazz",
+  "Chorinho",
+] as const;
+const MUSIC_CATEGORIES_SET = new Set<string>(MUSIC_CATEGORIES as readonly string[]);
 
-        const normalizedEvents: EventMapItem[] = data
-          .filter((item: any) => item.latitude != null && item.longitude != null)
-          .map((item: any) => ({
-            id: String(item.id),
-            name: item.name,
-            address: item.address ?? null,
-            imageUrl: item.imageUrl ?? null,
-            lat: Number(item.latitude),
-            lng: Number(item.longitude),
-          }));
-
-        setEvents(normalizedEvents);
-      })
-      .catch((err) => console.error("Erro ao buscar eventos:", err));
-  }, []);
-
-  return (
-    <View style={{ flex: 1 }}>
-      <FlatList
-        data={[{ key: "header" }]}
-        renderItem={() => null}
-        keyExtractor={(item) => (typeof item === "string" ? item : item.key)}
-        ListHeaderComponent={
-          <View style={styles.container}>
-            <Header />
-            <View style={styles.padding}>
-              <Text style={styles.greeting}>
-                Olá, {session?.user ? session.user.name : "bem vindo"}!
-              </Text>
-              <Text style={styles.subtitle}>O que você gostaria de fazer hoje?</Text>
-
-              <View style={{ marginTop: 24 }}>
-                <Search />
-              </View>
-
-              <View style={styles.quickSearchHeader}>
-                <Text style={styles.quickSearchTitle}>Busca Rápida</Text>
-                <TouchableOpacity style={styles.seeAllRow}>
-                  <Text style={styles.seeAll}>Ver todas</Text>
-                  <Feather name="chevron-right" size={16} color="#f97316" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.quickSearchContainerRow}>
-                <FlatList
-                  data={quickSearchOptions}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyExtractor={(item) => item.title}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.quickOption}>
-                      <Image source={getIcon(item.imageUrl)} style={styles.quickImage} />
-                      <Text style={styles.quickText}>{item.title}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-
-              {!loadingBanners && banners.length > 0 && (
-                <View style={{ marginTop: 24 }}>
-                  <Banner data={banners} autoPlay />
-                </View>
-              )}
-
-              {barbershops.length > 0 && (
-                <View style={{ marginTop: 32, paddingHorizontal: 16 }}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Eventos para você</Text>
-                    <TouchableOpacity style={styles.seeAllRow}>
-                      <Text style={styles.seeAll}>Ver todas</Text>
-                      <Feather name="chevron-right" size={16} color="#f97316" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <EventosGrid
-                    barbershops={barbershops}
-                    session={session}
-                    onLoginPress={() => console.log("Login")}
-                  />
-                </View>
-              )}
-
-              <View style={{ marginTop: 32 }}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Mais Eventos</Text>
-                  <TouchableOpacity style={styles.seeAllRow}>
-                    <Text style={styles.seeAll}>Ver todas</Text>
-                    <Feather name="chevron-right" size={16} color="#f97316" />
-                  </TouchableOpacity>
-                </View>
-
-                <BarbershopCarousel
-                  barbershops={barbershops}
-                  isLoggedIn={!!session?.user}
-                  onLoginPress={() => console.log("Login")}
-                />
-              </View>
-
-              {/* {events.length > 0 && (
-                <View style={{ marginTop: 32 }}>
-                  <Text style={styles.sectionTitle}>Mapa de Eventos</Text>
-                  <View style={{ marginTop: 16 }}>
-                    <MapRJ events={events} />
-                  </View>
-                </View>
-              )} */}
-
-              <View style={{ marginTop: 32 }}>
-                <Text style={styles.sectionTitle}>Calendário</Text>
-                <View style={{ marginTop: 16 }}>
-                  <Calendar />
-                </View>
-              </View>
-            </View>
-          </View>
-        }
-        ListFooterComponent={<Footer />}
-      />
-
-      {isOpen && (
-        <Pressable style={styles.overlay} onPress={closeMenu}>
-          <AnimatedRN.View
-            entering={SlideInRight}
-            exiting={SlideOutRight}
-            style={styles.sidebar}
-          >
-            <SidebarSheet />
-          </AnimatedRN.View>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-// ÍCONES
+/* Ícones locais (atenção aos caminhos) */
 const ICONS: Record<string, any> = {
   "/musica(1).png": require("../assets/icons/musica(1).png"),
   "/show.png": require("../assets/icons/show.png"),
@@ -193,14 +73,403 @@ const ICONS: Record<string, any> = {
   "/seminario.png": require("../assets/icons/seminario.png"),
   "/simposio.png": require("../assets/icons/simposio.png"),
 };
+const DEFAULT_ICON = ICONS["/show.png"];
+const resolveIcon = (imageUrl?: string) => {
+  if (!imageUrl) return DEFAULT_ICON;
+  const local = ICONS[imageUrl];
+  if (local) return local;
+  if (imageUrl.startsWith?.("http")) return { uri: imageUrl };
+  return DEFAULT_ICON;
+};
 
-const getIcon = (imageUrl: string) => ICONS[imageUrl];
+/* helpers de coordenada */
+const toNum = (v: unknown): number | null => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(",", ".").trim();
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+const inBounds = (lat: number, lng: number) =>
+  lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+export default function Home() {
+  const { user, isHydrated } = useAuth();
+  const isLoggedIn = !!user;
+  const router = useRouter();
+
+  const firstName = useMemo(() => (user?.name || "").trim().split(" ")[0], [user?.name]);
+
+  const [listScrollEnabled, setListScrollEnabled] = useState(true);
+  const [mapInteractive, setMapInteractive] = useState(false);
+
+  const [mapRect, setMapRect] = useState<{ x: number; y: number; width: number; height: number }>({
+    x: 0,
+    y: 0,
+    width: SCREEN_WIDTH,
+    height: 0,
+  });
+  const onMapContainerLayout = (e: LayoutChangeEvent) => {
+    const { x, y, width, height } = e.nativeEvent.layout;
+    setMapRect({ x, y, width, height });
+  };
+
+  /* =========================
+     Estados por agrupamento
+     ========================= */
+  const [eventsForYou, setEventsForYou] = useState<ApiEvent[]>([]);
+  const [eventsMusicDated, setEventsMusicDated] = useState<ApiEvent[]>([]);
+  const [eventsNonMusicDated, setEventsNonMusicDated] = useState<ApiEvent[]>([]);
+  const [eventsFixed, setEventsFixed] = useState<ApiEvent[]>([]);
+  const [mapData, setMapData] = useState<EventMapItem[]>([]);
+
+  const { banners, loading: loadingBanners } = useBanners();
+
+  const prefsKey = useMemo(() => {
+    if (!user?.preferencesSet || !Array.isArray(user?.preferences)) return "";
+    return [...user.preferences].sort().join("|");
+  }, [user?.preferencesSet, user?.preferences]);
+
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isHydrated || loadingRef.current) return;
+    loadingRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data: ApiEvent[] = await apiHelpers.events();
+
+        const normalized: ApiEvent[] = data.map((e) => ({
+          ...e,
+          likesCount: typeof e.likesCount === "number" ? e.likesCount : 0,
+          likedByUser: typeof e.likedByUser === "boolean" ? e.likedByUser : false,
+          categories: Array.isArray(e.categories) ? e.categories : [],
+        }));
+
+        /* ordena: sem data vão para o fim (como no web) */
+        normalized.sort((a, b) => eTime(a.startDate) - eTime(b.startDate));
+
+        const approved = normalized.filter((e) => e.aprovado === true);
+
+        /* separa fixos (sem datas) e datados */
+        const fixed = approved.filter((e) => !e.startDate && !e.endDate);
+        const dated = approved.filter((e) => e.startDate || e.endDate);
+
+        /* datados musicais e não-musicais */
+        const musicDated = dated.filter((e) =>
+          (e.categories ?? []).some((c) => MUSIC_CATEGORIES_SET.has(c))
+        );
+        const nonMusicDated = dated.filter(
+          (e) => !(e.categories ?? []).some((c) => MUSIC_CATEGORIES_SET.has(c))
+        );
+
+        /* “para você” somente se houver prefs */
+        let forYou: ApiEvent[] = [];
+        if (prefsKey) {
+          const prefs = prefsKey.split("|");
+          forYou = dated.filter((evento) => (evento.categories ?? []).some((c) => prefs.includes(c)));
+        }
+
+        /* mapa: aprovados com coordenadas válidas */
+        const mapItems: EventMapItem[] = approved
+          .map((e) => {
+            const lat = toNum(e.latitude);
+            const lng = toNum(e.longitude);
+            return {
+              id: String(e.id),
+              name: e.name,
+              address: e.address ?? null,
+              imageUrl: e.imageUrl ?? null,
+              lat: lat ?? 0,
+              lng: lng ?? 0,
+            } as EventMapItem;
+          })
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          .filter((p) => inBounds(p.lat, p.lng));
+
+        if (!cancelled) {
+          setEventsFixed(fixed);
+          setEventsMusicDated(musicDated);
+          setEventsNonMusicDated(nonMusicDated);
+          setEventsForYou(forYou);
+          setMapData(mapItems);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar eventos:", err);
+      } finally {
+        loadingRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, prefsKey]);
+
+  const onLoginPress = () => {
+    Alert.alert("Login necessário", "Abra o menu e entre com o Google.");
+  };
+
+  const greeting = isLoggedIn ? `Olá, ${firstName || "Usuário"}!` : "Olá, bem-vindo!";
+
+  const userPrefs = useMemo(
+    () =>
+      user?.preferencesSet && Array.isArray(user?.preferences) && user.preferences.length > 0
+        ? user.preferences
+        : null,
+    [user?.preferencesSet, user?.preferences]
+  );
+
+  const fixedIds = useMemo(() => eventsFixed.map((e) => e.id), [eventsFixed]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={[{ key: "header" }]}
+        scrollEnabled={listScrollEnabled}
+        renderItem={() => null}
+        keyExtractor={(item) => (typeof item === "string" ? item : item.key)}
+        ListHeaderComponent={
+          <View style={styles.container}>
+            <Header />
+
+            <View style={styles.padding}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.subtitle}>O que você gostaria de fazer hoje?</Text>
+
+              <View style={{ marginTop: 10 }}>
+                <Search
+                  onSubmit={(title) => {
+                    if (title?.trim()) {
+                      router.push(`/barbershops?title=${encodeURIComponent(title.trim())}`);
+                    }
+                  }}
+                />
+              </View>
+
+              {/* Busca Rápida */}
+              <View style={styles.quickSearchHeader}>
+                <Text style={styles.quickSearchTitle}>Busca Rápida</Text>
+                <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push("/colecoes" as any)}>
+                  <Text style={styles.seeAll}>Ver todas</Text>
+                  <Feather name="chevron-right" size={16} color="#f97316" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.quickSearchContainerRow}>
+                <FlatList
+                  data={quickSearchOptions}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.title}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.quickOption}
+                      onPress={() => router.push(`/barbershops?service=${encodeURIComponent(item.title)}` as any)}
+                    >
+                      <Image source={resolveIcon(item.imageUrl)} style={styles.quickImage} />
+                      <Text style={styles.quickText}>{item.title}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+
+              {/* Banner */}
+              {!loadingBanners && banners.length > 0 && (
+                <View style={{ marginTop: 24 }}>
+                  <Banner
+                    data={banners.map((b) => ({
+                      id: String(b.id),
+                      imageUrl: b.imageUrl,
+                      title: b.title,
+                      displaySeconds: b.displaySeconds ?? 3,
+                    }))}
+                    autoPlay
+                    showAdBadge
+                    adText="Anuncie aqui"
+                  />
+                </View>
+              )}
+
+              {/* Para você (só aparece se houver prefs / usuário logado com prefs) */}
+              {eventsForYou.length > 0 && (
+                <View style={{ marginTop: 32 }}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Eventos para você</Text>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push("/paraVoce")}>
+                      <Text style={styles.seeAll}>Ver todas</Text>
+                      <Feather name="chevron-right" size={16} color="#f97316" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <EventosGrid
+                    barbershops={eventsForYou.map((e) => ({ ...e, imageUrl: e.imageUrl ?? "" }))}
+                    isLoggedIn={isLoggedIn}
+                    onLoginPress={onLoginPress}
+                  />
+                </View>
+              )}
+
+              {/* Música (somente com datas) */}
+              {eventsMusicDated.length > 0 && (
+                <View style={{ marginTop: 32 }}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Eventos de Música</Text>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push("/musica" as any)}>
+                      <Text style={styles.seeAll}>Ver todas</Text>
+                      <Feather name="chevron-right" size={16} color="#f97316" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <MusicEventsCarousel
+                    barbershops={eventsMusicDated.map((e) => ({
+                      ...e,
+                      imageUrl: e.imageUrl ?? "",
+                      categories: Array.isArray(e.categories) ? e.categories : [],
+                    }))}
+                    isLoggedIn={isLoggedIn}
+                    onLoginPress={onLoginPress}
+                    userPrefs={userPrefs}
+                  />
+                </View>
+              )}
+
+              {/* Mais Eventos (somente datados não-musicais) */}
+              {eventsNonMusicDated.length > 0 && (
+                <View style={{ marginTop: 32 }}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Mais Eventos</Text>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push("/maisVisitados" as any)}>
+                      <Text style={styles.seeAll}>Ver todas</Text>
+                      <Feather name="chevron-right" size={16} color="#f97316" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <BarbershopCarousel
+                    barbershops={eventsNonMusicDated.map((e) => ({ ...e, imageUrl: e.imageUrl ?? "" }))}
+                    isLoggedIn={isLoggedIn}
+                    onLoginPress={onLoginPress}
+                    excludeIds={fixedIds}
+                  />
+                </View>
+              )}
+
+              {/* Fixos (sem data) */}
+              {eventsFixed.length > 0 && (
+                <View style={{ marginTop: 32 }}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Eventos do Dia a Dia</Text>
+                    <TouchableOpacity style={styles.seeAllRow} onPress={() => router.push("/fixos" as any)}>
+                      <Text style={styles.seeAll}>Ver todas</Text>
+                      <Feather name="chevron-right" size={16} color="#f97316" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <EventFixCarousel
+                    title={undefined}
+                    events={eventsFixed.map((e) => ({
+                      ...e,
+                      imageUrl: e.imageUrl ?? "",
+                      categories: Array.isArray(e.categories) ? e.categories : [],
+                    }))}
+                    isLoggedIn={isLoggedIn}
+                    onLoginPress={onLoginPress}
+                  />
+                </View>
+              )}
+
+              {/* Mapa (aprovados com coords) */}
+              {mapData.length > 0 && (
+                <View style={{ marginTop: 32 }}>
+                  <Text style={styles.sectionTitle}>Mapa de Eventos</Text>
+
+                  <View onLayout={onMapContainerLayout} style={{ marginTop: 12 }}>
+                    <MapRJ
+                      events={mapData}
+                      onPressItem={(id) => router.push(`/barbershop/${id}`)}
+                      isInteractive={mapInteractive}
+                      onInteractionChange={(enabled: boolean) => {
+                        setMapInteractive(enabled);
+                        setListScrollEnabled(!enabled);
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Calendário */}
+              <View style={{ marginTop: 32 }}>
+                <Text style={styles.sectionTitle}>Calendário</Text>
+                <View style={{ marginTop: 16 }}>
+                  <Calendar />
+                </View>
+              </View>
+            </View>
+          </View>
+        }
+        ListFooterComponent={<Footer />}
+      />
+
+      {/* Backdrop do mapa quando interativo */}
+      {mapInteractive && mapRect.height > 0 && (
+        <>
+          <Pressable
+            style={[styles.abs, { left: 0, right: 0, top: 0, height: mapRect.y }]}
+            onPress={() => {
+              setMapInteractive(false);
+              setListScrollEnabled(true);
+            }}
+          />
+          <Pressable
+            style={[styles.abs, { left: 0, right: 0, top: mapRect.y + mapRect.height, bottom: 0 }]}
+            onPress={() => {
+              setMapInteractive(false);
+              setListScrollEnabled(true);
+            }}
+          />
+          <Pressable
+            style={[
+              styles.abs,
+              { top: mapRect.y, bottom: SCREEN_HEIGHT - (mapRect.y + mapRect.height), left: 0, width: mapRect.x },
+            ]}
+            onPress={() => {
+              setMapInteractive(false);
+              setListScrollEnabled(true);
+            }}
+          />
+          <Pressable
+            style={[
+              styles.abs,
+              {
+                top: mapRect.y,
+                bottom: SCREEN_HEIGHT - (mapRect.y + mapRect.height),
+                left: mapRect.x + mapRect.width,
+                right: 0,
+              },
+            ]}
+            onPress={() => {
+              setMapInteractive(false);
+              setListScrollEnabled(true);
+            }}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
+function eTime(d?: string | null) {
+  return d ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER;
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   padding: { padding: 16 },
   greeting: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, marginTop: 4 },
+
   quickSearchHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -211,6 +480,7 @@ const styles = StyleSheet.create({
   quickSearchTitle: { fontSize: 18, fontWeight: "600", color: "#333" },
   seeAll: { fontSize: 14, color: "#f97316" },
   seeAllRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+
   quickSearchContainerRow: { paddingRight: 16, marginBottom: 8 },
   quickOption: {
     minWidth: 120,
@@ -229,6 +499,7 @@ const styles = StyleSheet.create({
   },
   quickImage: { width: 32, height: 32, marginBottom: 8, resizeMode: "contain" },
   quickText: { fontSize: 14, color: "#444", textAlign: "center" },
+
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -236,27 +507,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1a1a1a" },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    zIndex: 1000,
-  },
-  sidebar: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: SCREEN_WIDTH * 0.8,
-    backgroundColor: "#fff",
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
+
+  abs: { position: "absolute", backgroundColor: "transparent", zIndex: 10 },
 });

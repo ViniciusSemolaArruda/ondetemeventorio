@@ -1,28 +1,85 @@
+import { useRouter } from "expo-router";
 import React from "react";
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const router = useRouter();
 
-  const handleLink = (url: string) => {
-    Linking.openURL(url).catch((err) => console.error("Erro ao abrir URL:", err));
+  const openMail = (email: string) => {
+    Linking.openURL(`mailto:${email}`).catch((err) =>
+      console.error("Erro ao abrir e-mail:", err)
+    );
   };
 
   return (
     <View style={styles.footer}>
       <View style={styles.container}>
+        {/* Copyright */}
         <Text style={styles.copyText}>
-          © {currentYear} Copyright <Text style={styles.brand}>Capadócia Produções</Text>
+          © {currentYear} Copyright{" "}
+          <Text style={styles.brand}>Capadócia Produções</Text>
         </Text>
 
+        {/* CNPJ / Endereço / Email */}
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoText}>CNPJ: 15.914.276/0001-52</Text>
+          <Text style={styles.infoText}>
+            Endereço: Rua Exemplo, 123 - Rio de Janeiro - RJ
+          </Text>
+
+          <View style={styles.rowCenter}>
+            <Text style={styles.infoText}>E-mail: </Text>
+            <TouchableOpacity
+              accessibilityRole="link"
+              onPress={() => openMail("contato.ondetemevento@gmail.com")}
+            >
+              <Text style={[styles.infoText, styles.linkUnderlined]}>
+                contato.ondetemevento@gmail.com
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Links */}
         <View style={styles.linksContainer}>
-          <TouchableOpacity onPress={() => handleLink("https://seudominio.com/politica")}>
+          <TouchableOpacity
+            accessibilityRole="link"
+            onPress={() => router.push("/termos" as any)}
+          >
             <Text style={styles.link}>Termos de Serviço</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleLink("https://seudominio.com/politica")}>
+
+          <Text style={styles.separator}>•</Text>
+
+          <TouchableOpacity
+            accessibilityRole="link"
+            onPress={() => router.push("/politica" as any)}
+          >
             <Text style={styles.link}>Política de Privacidade</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleLink("https://seudominio.com/contato")}>
+
+          <Text style={styles.separator}>•</Text>
+
+          <TouchableOpacity
+            accessibilityRole="link"
+            onPress={() => router.push("/cookies" as any)}
+          >
+            <Text style={styles.link}>Cookies</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.separator}>•</Text>
+
+          <TouchableOpacity
+            accessibilityRole="link"
+            onPress={() => router.push("/contato" as any)}
+          >
             <Text style={styles.link}>Contato</Text>
           </TouchableOpacity>
         </View>
@@ -35,38 +92,56 @@ export default Footer;
 
 const styles = StyleSheet.create({
   footer: {
-    backgroundColor: "#fff", // cor do fundo, personalize conforme necessário
+    backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderColor: "#e2e8f0", // equivalente a border-gray-200
+    borderColor: "#e5e7eb", // cinza claro
     paddingVertical: 16,
-    paddingHorizontal: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 16,
   },
   container: {
     alignItems: "center",
-    gap: 16,
   },
   copyText: {
     fontSize: 14,
-    color: "#6b7280", // text-muted-foreground
+    color: "#6b7280",
     textAlign: "center",
   },
   brand: {
     fontWeight: "600",
-    color: "#111", // cor mais escura para "Capadócia Produções"
+    color: "#111827",
+  },
+  infoBlock: {
+    marginTop: 8,
+    alignItems: "center",
+  },
+  infoText: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+  },
+  rowCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  linkUnderlined: {
+    textDecorationLine: "underline",
+    color: "#374151",
   },
   linksContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8,
     justifyContent: "center",
-    gap: 12,
+    alignItems: "center",
+    marginTop: 12,
   },
   link: {
     fontSize: 14,
     color: "#6b7280",
     textDecorationLine: "underline",
+  },
+  separator: {
+    fontSize: 14,
+    color: "#9ca3af",
   },
 });

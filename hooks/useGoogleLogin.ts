@@ -1,101 +1,148 @@
-//hooks\useGoogleLogin.ts
-import { makeRedirectUri } from 'expo-auth-session';
-import * as Google from 'expo-auth-session/providers/google';
-import Constants from 'expo-constants';
-import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useMemo, useState } from 'react';
-import { setUserOnAuthContext } from '../context/AuthContext';
+// hooks/useGoogleLogin.ts
+import { adoptApiSessionAndRefreshUser } from "@/context/AuthContext";
+import { apiHelpers } from "@/lib/api";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import Constants from "expo-constants";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-WebBrowser.maybeCompleteAuthSession();
+type Extra = { GOOGLE_WEB_CLIENT_ID?: string };
+const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
+const WEB_CLIENT_ID = extra.GOOGLE_WEB_CLIENT_ID ?? "";
 
-type Extra = {
-  API_BASE_URL?: string;
-  GOOGLE_CLIENT_ID?: string;            // Web Client ID
-  GOOGLE_ANDROID_CLIENT_ID?: string;    // Android Client ID
+// Perfil simplificado para UI
+export type GoogleProfile = {
+  idToken: string | null;
+  serverAuthCode?: string | null;
+  email?: string | null;
+  name?: string | null;
+  photo?: string | null;
 };
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
-const API_BASE_URL = extra.API_BASE_URL ?? 'https://ondetemeventorio.vercel.app';
-const WEB_CLIENT_ID = extra.GOOGLE_CLIENT_ID!;
-const ANDROID_CLIENT_ID = extra.GOOGLE_ANDROID_CLIENT_ID!;
-
-const OWNER = Constants.expoConfig?.owner ?? 'viniciusarruda';
-const SLUG = Constants.expoConfig?.slug ?? 'ondetemeventorio';
-
-// Proxy do Expo (para Expo Go)
-const EXPO_PROXY_REDIRECT = `https://auth.expo.dev/@${OWNER}/${SLUG}`;
-// Scheme (para build nativa)
-const NATIVE_REDIRECT = makeRedirectUri({
-  native: `com.googleusercontent.apps.${ANDROID_CLIENT_ID.replace('.apps.googleusercontent.com', '')}:/oauthredirect`
-});
-
-
-export function useGoogleAuth() {
-  const isExpoGo = Constants.appOwnership === 'expo';
-  const redirectUri = isExpoGo ? EXPO_PROXY_REDIRECT : NATIVE_REDIRECT;
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  console.log('🔁 redirectUri em uso:', redirectUri); // ⬅️ Confirma se está usando o proxy
-  // Expo Go => Web client; Build nativa => Android client
-  const [request, response, promptAsync] = Google.useAuthRequest(
-    isExpoGo
-      ? {
-          clientId: WEB_CLIENT_ID,      // ✅ Web Client ID (Expo Go + proxy)
-          redirectUri,
-          scopes: ['profile', 'email'],
-          responseType: 'id_token',
-        // seu backend espera access_token
-        }
-      : {
-          androidClientId: ANDROID_CLIENT_ID, // ✅ Android Client ID (APK/AAB)
-          redirectUri,
-          scopes: ['profile', 'email'],
-         responseType: 'id_token',
-
-        }
-  );
-
-  useEffect(() => {
-    (async () => {
-      if (response?.type !== 'success') return;
-      const accessToken = response.authentication?.accessToken;
-      if (!accessToken) return;
-
-      try {
-        setIsLoading(true);
-        const res = await fetch(`${API_BASE_URL}/api/mobile-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ id_token: response.authentication?.idToken })
-        });
-
-        if (!res.ok) throw new Error('backend auth failed');
-        const user = await res.json();
-        setUserOnAuthContext(user);
-      } catch (e) {
-        console.error('❌ Erro ao autenticar no backend', e);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [response]);
-
-  const signInWithGoogle = useMemo(
-  () => () => {
-    if (!request) {
-      console.warn('⚠️ Autenticação Google ainda não está pronta.');
-      return;
-    }
-    console.log('🔁 redirectUri em uso:', redirectUri);
-    promptAsync(); // ✅ sem useProxy aqui
-  },
-  [request, redirectUri, promptAsync]
-);
-
-  return { signInWithGoogle, isLoading, request };
+function extractUser(resp: any) {
+  // compatibilidade: algumas versões retornam resp.user, outras resp.data.user
+  const data = resp?.data ?? resp;
+  const user = data?.user ?? {};
+  const serverAuthCode = data?.serverAuthCode ?? null;
+  return {
+    email: user?.email ?? null,
+    name: user?.name ?? null,
+    photo: user?.photo ?? null,
+    serverAuthCode,
+  } as Pick<GoogleProfile, "email" | "name" | "photo" | "serverAuthCode">;
 }
 
-export function logout() {
-  setUserOnAuthContext(null);
+export function useGoogleAuth() {
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<GoogleProfile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Configuração do Google Sign-In
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: WEB_CLIENT_ID,
+      // offlineAccess: true,
+      // forceCodeForRefreshToken: true,
+    });
+  }, []);
+
+  // Tenta restaurar sessão Google (opcional)
+  useEffect(() => {
+    (async () => {
+      try {
+        // 1) Já logado no Google?
+        const current = await GoogleSignin.getCurrentUser();
+        if (current) {
+          const tokens = await GoogleSignin.getTokens();
+          const u = extractUser(current);
+          setProfile({
+            idToken: tokens?.idToken ?? null,
+            ...u,
+          });
+          return;
+        }
+        // 2) Tenta silencioso
+        const resp = await GoogleSignin.signInSilently();
+        const tokens = await GoogleSignin.getTokens();
+        const u = extractUser(resp);
+        setProfile({
+          idToken: tokens?.idToken ?? null,
+          ...u,
+        });
+      } catch {
+        // Sem sessão Google, segue normal
+      }
+    })();
+  }, []);
+
+  // Login Google → troca por JWT da sua API → aplica no contexto
+  const signInWithGoogle = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      const resp = await GoogleSignin.signIn();
+      const tokens = await GoogleSignin.getTokens();
+
+      const u = extractUser(resp);
+      const googleData: GoogleProfile = {
+        idToken: tokens?.idToken ?? null,
+        ...u,
+      };
+      setProfile(googleData);
+
+      if (!googleData.idToken) {
+        throw new Error("Falha ao obter idToken do Google.");
+      }
+
+      // Troca idToken do Google por JWT da sua API
+      const { user, accessToken } = await apiHelpers.mobileLogin({
+        id_token: googleData.idToken,
+      });
+
+      // Aplica token da API e atualiza preferências; injeta no AuthContext
+      await adoptApiSessionAndRefreshUser({
+        user: {
+          ...user,
+          provider: "google",
+          idToken: googleData.idToken, // opcional para debug
+          accessToken,                  // JWT da sua API
+        },
+        accessToken,
+      });
+
+      return { user, accessToken };
+    } catch (e: any) {
+      if (e?.code === statusCodes.SIGN_IN_CANCELLED) {
+        setError("Login cancelado pelo usuário.");
+      } else if (e?.code === statusCodes.IN_PROGRESS) {
+        setError("Login já em andamento.");
+      } else if (e?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError("Google Play Services indisponível/desatualizado.");
+      } else {
+        setError("Falha ao entrar com Google.");
+      }
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await GoogleSignin.signOut();
+      setProfile(null);
+      // Para limpar o contexto/app, chame useAuth().signOut() na UI
+    } catch {
+      setError("Falha ao sair da conta Google.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const isSignedIn = useMemo(() => !!profile?.idToken, [profile]);
+
+  return { loading, error, profile, isSignedIn, signInWithGoogle, signOut };
 }

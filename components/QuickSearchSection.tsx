@@ -1,92 +1,34 @@
-import { quickSearchOptions } from "@/constants/search";
-import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useRef, useState } from "react";
+// components/QuickSearchSection.tsx
+import { useRouter } from "expo-router";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import React, { useMemo, useRef, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { RootStackParamList } from "types/navigation"; // ✅
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
+// Tipos
+type Option = {
+  title: string;
+  imageUrl: string;   // caminho do ícone local, ex: "/musica(1).png"
+  service?: string;   // slug opcional; se não vier, uso title
+};
 
-export default function QuickSearchSection() {
-  const scrollRef = useRef<ScrollView>(null);
-  const [scrollX, setScrollX] = useState(0);
+type Props = {
+  options: Option[];
+};
 
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+const SCREEN_W = Dimensions.get("window").width;
 
-  const scrollLeft = () => {
-    scrollRef.current?.scrollTo({ x: scrollX - 200, animated: true });
-  };
-
-  const scrollRight = () => {
-    scrollRef.current?.scrollTo({ x: scrollX + 200, animated: true });
-  };
-
-  return (
-    <View style={{ marginTop: 24 }}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Busca Rápida</Text>
-        <TouchableOpacity
-          style={styles.linkRow}
-          onPress={() => navigation.navigate("Colecoes")}
-        >
-          <Text style={styles.linkText}>Ver todas</Text>
-          <Feather name="chevron-right" size={16} color="#f97316" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Carrossel */}
-      <View style={{ position: "relative" }}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContainer}
-          onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
-          scrollEventThrottle={16}
-        >
-          {quickSearchOptions.map((option) => (
-            <TouchableOpacity
-              key={option.title}
-              style={styles.option}
-              onPress={() =>
-                navigation.navigate("Barbershops", { service: option.title })
-              }
-            >
-              <Image
-                source={getIcon(option.imageUrl)}
-                style={styles.icon}
-                resizeMode="contain"
-              />
-              <Text style={styles.optionText}>{option.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {scrollX > 10 && (
-          <TouchableOpacity style={styles.leftArrow} onPress={scrollLeft}>
-            <Feather name="chevron-left" size={24} color="#f97316" />
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.rightArrow} onPress={scrollRight}>
-          <Feather name="chevron-right" size={24} color="#f97316" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
+// mapeia seus ícones locais (mesmo conjunto usado no seu app)
 const ICONS: Record<string, any> = {
   "/musica(1).png": require("../assets/icons/musica(1).png"),
   "/show.png": require("../assets/icons/show.png"),
@@ -101,74 +43,162 @@ const ICONS: Record<string, any> = {
   "/seminario.png": require("../assets/icons/seminario.png"),
   "/simposio.png": require("../assets/icons/simposio.png"),
 };
+const getIcon = (u: string) => ICONS[u];
 
-const getIcon = (imageUrl: string) => ICONS[imageUrl];
+export default function QuickSearchSection({ options }: Props) {
+  const router = useRouter();
+  const listRef = useRef<FlatList>(null);
+
+  const [offsetX, setOffsetX] = useState(0);
+  const [contentW, setContentW] = useState(0);
+
+  const canScrollLeft = offsetX > 10;
+  const canScrollRight = contentW - offsetX - SCREEN_W > 10;
+
+  const data = useMemo(() => options, [options]);
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setOffsetX(e.nativeEvent.contentOffset.x);
+  };
+
+  const onContentSizeChange = (w: number) => {
+    setContentW(w);
+  };
+
+  const scrollBy = (delta: number) => {
+    const next = Math.max(0, offsetX + delta);
+    listRef.current?.scrollToOffset({ offset: next, animated: true });
+  };
+
+  const handlePress = (opt: Option) => {
+    const service = (opt.service ?? opt.title).toString();
+    router.push(`/barbershops?service=${encodeURIComponent(service)}` as any);
+  };
+
+  return (
+    <View style={{ marginTop: 24 }}>
+      {/* Header: título + Ver todas */}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Busca Rápida</Text>
+        <TouchableOpacity
+          style={styles.seeAllRow}
+          onPress={() => router.push("/colecoes" as any)}
+        >
+          <Text style={styles.seeAll}>Ver todas</Text>
+          <ChevronRight size={16} color="#f97316" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Carrossel horizontal */}
+      <View style={{ position: "relative" }}>
+        <FlatList
+          ref={listRef}
+          data={data}
+          keyExtractor={(item) => (item.service ?? item.title)}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          onContentSizeChange={onContentSizeChange}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingRight: 16 }}
+          renderItem={({ item }) => (
+            <Pressable style={styles.card} onPress={() => handlePress(item)}>
+              <Image source={getIcon(item.imageUrl)} style={styles.icon} />
+              <Text style={styles.cardText} numberOfLines={1}>
+                {item.title}
+              </Text>
+            </Pressable>
+          )}
+        />
+
+        {/* Setas de navegação (mostram/ somem conforme scroll) */}
+        {canScrollLeft && (
+          <TouchableOpacity
+            style={[styles.navBtn, { left: 2 }]}
+            onPress={() => scrollBy(-200)}
+            activeOpacity={0.8}
+          >
+            <ChevronLeft size={22} color="#f97316" />
+          </TouchableOpacity>
+        )}
+
+        {canScrollRight && (
+          <TouchableOpacity
+            style={[styles.navBtn, { right: 2 }]}
+            onPress={() => scrollBy(200)}
+            activeOpacity={0.8}
+          >
+            <ChevronRight size={22} color="#f97316" />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 12,
-    paddingHorizontal: 16,
+  headerRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingHorizontal: 2,
   },
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1a1a1a",
+    color: "#111827",
   },
-  linkRow: {
+  seeAllRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 4,
   },
-  linkText: {
+  seeAll: {
     fontSize: 14,
-    fontWeight: "500",
     color: "#f97316",
-    marginRight: 4,
+    fontWeight: "500",
   },
-  scrollContainer: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  option: {
-    width: 100,
+
+  card: {
+    minWidth: 120,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#fff",
+    padding: 16,
+    marginRight: 12,
     borderRadius: 12,
-    padding: 12,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
     elevation: 2,
   },
   icon: {
     width: 32,
     height: 32,
+    resizeMode: "contain",
     marginBottom: 8,
   },
-  optionText: {
-    fontSize: 13,
-    color: "#444",
+  cardText: {
+    fontSize: 14,
+    color: "#374151",
     textAlign: "center",
   },
-  leftArrow: {
+
+  navBtn: {
     position: "absolute",
-    top: "40%",
-    left: 8,
+    top: "50%",
+    transform: [{ translateY: -18 }],
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 4,
-    elevation: 4,
-    zIndex: 1,
-  },
-  rightArrow: {
-    position: "absolute",
-    top: "40%",
-    right: 8,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 4,
-    elevation: 4,
-    zIndex: 1,
+    padding: 6,
+    borderRadius: 999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });

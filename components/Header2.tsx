@@ -8,9 +8,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../context/AuthContext";
+import { useMenu } from "../context/MenuContext";
 
 const Header2 = () => {
   const router = useRouter();
+  const { user } = useAuth();
+    const { openMenu } = useMenu();
 
   const handleGoHome = () => {
     router.push("/home");
@@ -33,9 +37,16 @@ const Header2 = () => {
             <Text style={styles.buttonText}>Voltar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton}>
-            <Menu size={24} color="#333" />
-          </TouchableOpacity>
+          <TouchableOpacity
+  style={[styles.iconButton, !user && styles.attentionPing]}
+  onPress={() => {
+    console.log("Abrindo menu...");
+    openMenu();
+  }}
+>
+  <Menu size={24} color="#333" />
+</TouchableOpacity>
+
         </View>
       </View>
     </View>
@@ -91,6 +102,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 6,
+  },
+   attentionPing: {
+    borderColor: "#007AFF",
   },
 });
 

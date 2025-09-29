@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Toast from "react-native-toast-message"; // ✅ importa o Toast
 import { useAuth } from "../context/AuthContext";
 import { useMenu } from "../context/MenuContext";
 
@@ -18,27 +19,30 @@ export default function Header() {
   const router = useRouter();
 
   const handleCreateEvent = () => {
-    // Se quiser exigir login, descomente:
-    // if (!user) {
-    //   alert("Você precisa estar logado para criar um evento.");
-    //   return;
-    // }
+    if (!user) {
+      Toast.show({
+        type: "info", // pode usar "success" | "error" | "info"
+        text1: "Você precisa estar logado",
+        text2: "Entre na sua conta.",
+        position: "bottom", // ✅ aparece embaixo
+        visibilityTime: 3000, // 3s e some sozinho
+      });
+      return;
+    }
     router.push(ROUTES.CREATE_EVENT);
   };
 
   return (
     <View style={styles.card}>
       <View style={styles.container}>
-        {/* Logo que leva para a página de criação */}
-        
-          <TouchableOpacity>
-            <Image
-              source={require("../assets/images/logo01.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        
+        {/* Logo */}
+        <TouchableOpacity>
+          <Image
+            source={require("../assets/images/logo01.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
 
         {/* Botões */}
         <View style={styles.buttons}>
@@ -55,10 +59,11 @@ export default function Header() {
           </TouchableOpacity>
         </View>
       </View>
+
+      
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   card: {

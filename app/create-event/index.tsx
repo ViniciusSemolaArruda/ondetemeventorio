@@ -1,4 +1,6 @@
+// app/create-event/index.tsx (ajuste o caminho/nome conforme o seu projeto)
 import BasicInfoSection from "@/components/CreateEvent/BasicInfoSection"
+import CategoriesSection from "@/components/CreateEvent/CategoriesSection"
 import DateTimeSection from "@/components/CreateEvent/DateTimeSection"
 import DescriptionSection from "@/components/CreateEvent/DescriptionSection"
 import EventImageUpload from "@/components/CreateEvent/EventImageUpload"
@@ -8,11 +10,12 @@ import TicketsSection from "@/components/CreateEvent/TicketsSection"
 import WebsiteSection from "@/components/CreateEvent/WebsiteSection"
 import Header2 from "@/components/Header2"
 import { useAuth } from "@/context/AuthContext"
+import type { Href } from "expo-router"
 import { useRouter } from "expo-router"
 import React, { useState } from "react"
-
 import {
   Alert,
+  Dimensions,
   Linking,
   ScrollView,
   StyleSheet,
@@ -20,11 +23,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import Toast from "react-native-toast-message"
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
 const CreateEventPage = () => {
   const { user } = useAuth()
+  const router = useRouter()
 
-  // --- Estados principais ---
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -49,9 +55,7 @@ const CreateEventPage = () => {
   const [categories, setCategories] = useState<string[]>([])
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [showToast, setShowToast] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-const router = useRouter()
 
   const confirmSubmission = async () => {
     setShowConfirmation(false)
@@ -63,12 +67,10 @@ const router = useRouter()
       Alert.alert("Atenção", "Você precisa aceitar os Termos de Serviço.")
       return
     }
-
     if (!title.trim()) {
       Alert.alert("Atenção", "Título é obrigatório.")
       return
     }
-
     if (!startDate || !startTime || !endDate || !endTime) {
       Alert.alert("Atenção", "Preencha data e hora de início e fim.")
       return
@@ -114,17 +116,21 @@ const router = useRouter()
       console.log("POST /api/events =>", res.status, text)
 
       if (res.ok) {
-  setSuccess(true)
-  setTimeout(() => {
-    setSuccess(false)
-    setShowToast(true)
-    setTimeout(() => {
-      setShowToast(false)
-      router.push("/") // redireciona para a página inicial
-    }, 5000)
-  }, 3000)
+        setSuccess(true)
+        setTimeout(() => {
+          setSuccess(false)
 
+          Toast.show({
+            type: "success",
+            text1: "Evento enviado com sucesso!",
+            text2: "Aguardando avaliação da equipe em até 24h.",
+            position: "bottom",
+            visibilityTime: 4000,
+          })
 
+          // Se sua home é /home, troque para "/home" as Href
+          router.push("/" as Href)
+        }, 3000)
       } else {
         Alert.alert("Erro", `Falha ao criar evento (${res.status}).\n${text}`)
       }
@@ -141,8 +147,10 @@ const router = useRouter()
         <Text style={styles.title}>Criar Novo Evento</Text>
 
         <BasicInfoSection title={title} onChangeTitle={setTitle} />
-
         <EventImageUpload onFileSelect={(url) => setImageUrl(url)} />
+
+        {/* categorias */}
+        <CategoriesSection selected={categories} onChange={setCategories} />
 
         <DateTimeSection
           startDate={startDate}
@@ -194,20 +202,13 @@ const router = useRouter()
         </TouchableOpacity>
       </ScrollView>
 
+      {/* overlays LOCAIS da página (ok manter) */}
       {success && (
         <View style={styles.overlay}>
           <View style={styles.successBox}>
             <Text style={styles.spinner}>🔄</Text>
             <Text style={styles.successText}>Evento criado com sucesso! Redirecionando...</Text>
           </View>
-        </View>
-      )}
-
-      {showToast && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>
-            O evento será avaliado pela nossa equipe em até 24 horas antes de ser publicado.
-          </Text>
         </View>
       )}
 
@@ -229,6 +230,8 @@ const router = useRouter()
           </View>
         </View>
       )}
+
+      {/* 🚫 NADA de Sidebar/overlay do MENU aqui — isso fica no _layout.tsx */}
     </View>
   )
 }
@@ -284,14 +287,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+
+  // overlays LOCAIS desta página (ok manter)
   overlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 999,
+    zIndex: 999, // < 1000 do overlay do MENU no _layout.tsx
     justifyContent: "center",
     alignItems: "center",
   },
@@ -305,33 +307,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
   },
-  spinner: {
-    fontSize: 24,
-    marginRight: 10,
-  },
-  successText: {
-    color: "#047857",
-    fontWeight: "bold",
-  },
-  toast: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: "#ecfdf5",
-    borderColor: "#059669",
-    borderWidth: 1,
-    borderRadius: 6,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    zIndex: 999,
-  },
-  toastText: {
-    color: "#065f46",
-    textAlign: "center",
-  },
+  spinner: { fontSize: 24, marginRight: 10 },
+  successText: { color: "#047857", fontWeight: "bold" },
+
   confirmBox: {
     backgroundColor: "#fff",
     padding: 20,
@@ -341,37 +319,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
   },
-  confirmTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#1f2937",
-  },
-  confirmText: {
-    fontSize: 14,
-    color: "#4b5563",
-    marginBottom: 20,
-  },
-  confirmButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 12,
-  },
-  button: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-  },
-  cancelButton: {
-    backgroundColor: "#ef4444",
-  },
-  confirmButton: {
-    backgroundColor: "#16a34a",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  confirmTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10, color: "#1f2937" },
+  confirmText: { fontSize: 14, color: "#4b5563", marginBottom: 20 },
+  confirmButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 12 },
+  button: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6 },
+  cancelButton: { backgroundColor: "#ef4444" },
+  confirmButton: { backgroundColor: "#16a34a" },
+  buttonText: { color: "#fff", fontWeight: "bold" },
 })
 
 export default CreateEventPage

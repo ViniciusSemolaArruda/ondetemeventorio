@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginLeft: 8,
-    backgroundColor: "#000",
+    backgroundColor: "#FF7400",
     borderRadius: 8,
     paddingHorizontal: 16,
     justifyContent: "center",
@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    backgroundColor: "#FF7400",
   },
   emptyText: {
     textAlign: "center",

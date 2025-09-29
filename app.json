@@ -1,24 +1,36 @@
 {
   "expo": {
-    "name": "ondetemeventorio",
+    "name": "Onde Tem Evento Rio",
     "slug": "ondetemeventorio",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "com.googleusercontent.apps.130486548338-i7m9ts9maegg20to0ji86vau48p5rdad",
+    "scheme": "ondetemeventorio",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "SUA_CHAVE_GOOGLE_MAPS_AQUI"
+      }
     },
+
     "android": {
+      "package": "com.capadocia.ondetemeventorio",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.capadocia.ondetemeventorio"
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyByyTBGR1rWcchXSR59JOVVG2IszfmpeVI"
+        }
+      }
     },
+
     "plugins": [
       "expo-router",
       [
@@ -30,20 +42,19 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
+
+    "experiments": { "typedRoutes": true },
     "owner": "viniciusarruda",
+
     "extra": {
-      "API_BASE_URL": "https://ondetemeventorio.vercel.app",
-      "GOOGLE_CLIENT_ID": "130486548338-89l6lucgtp5670uvu855dndetfiq8eo6.apps.googleusercontent.com",
-      "GOOGLE_ANDROID_CLIENT_ID": "130486548338-i7m9ts9maegg20to0ji86vau48p5rdad.apps.googleusercontent.com",
+      "API_BASE_URL": "https://www.ondetemeventorio.com.br",
+      "GOOGLE_WEB_CLIENT_ID": "130486548338-89l6lucgtp5670uvu855dndetfiq8eo6.apps.googleusercontent.com",
+      "GOOGLE_ANDROID_CLIENT_ID": "130486548338-2um8iak2hdo86u80vdfo9jbfli6pagvi.apps.googleusercontent.com",
       "router": {},
-      "eas": {
-        "projectId": "31fd7ad0-f649-4047-a9d9-f8ebd6e675d8"
-      }
+      "eas": { "projectId": "31fd7ad0-f649-4047-a9d9-f8ebd6e675d8" }
     }
   }
 }
