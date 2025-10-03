@@ -1,5 +1,7 @@
+// MapRJ.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   StyleSheet,
@@ -41,6 +43,14 @@ type BaseProps = {
   isInteractive?: boolean;
   /** Informa mudanças de interação para o pai */
   onInteractionChange?: (enabled: boolean) => void;
+  /** mostra overlay de carregamento enquanto filtra/busca dados */
+  loading?: boolean;
+  /** mensagem quando não houver itens (após carregar) */
+  emptyMessage?: string;
+  /** se true, chama fit nos marcadores quando os dados mudarem (default: true) */
+  fitOnDataChange?: boolean;
+  /** ✅ região selecionada (usamos para filtrar pins da capital) */
+  regionSelected?: string;
 };
 
 type Props =
@@ -49,7 +59,70 @@ type Props =
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function MapRJ(props: Props) {
+/* ========= Helpers ========= */
+
+function groupByCoord(items: EventMapItem[], precision = 6) {
+  const map = new Map<string, EventMapItem[]>();
+  for (const it of items) {
+    const key = `${it.lat.toFixed(precision)}|${it.lng.toFixed(precision)}`;
+    const arr = map.get(key);
+    if (arr) arr.push(it);
+    else map.set(key, [it]);
+  }
+  return Array.from(map.entries()).map(([key, list]) => {
+    const [latStr, lngStr] = key.split("|");
+    return {
+      centerLat: parseFloat(latStr),
+      centerLng: parseFloat(lngStr),
+      items: list,
+    };
+  });
+}
+
+function computeSpiderfyOffsets(
+  count: number,
+  centerLat: number,
+  region: Region
+): { dLat: number; dLng: number }[] {
+  if (count <= 1) return [{ dLat: 0, dLng: 0 }];
+
+  const base = region.longitudeDelta;
+  const min = 0.00018;
+  const max = 0.0022;
+  const radius = Math.min(max, Math.max(min, base * 0.015));
+
+  const cosLat = Math.max(0.0001, Math.cos((centerLat * Math.PI) / 180));
+  const dLngUnit = radius / cosLat;
+
+  const angles = Array.from({ length: count }).map((_, i) => (2 * Math.PI * i) / count);
+  return angles.map((ang) => ({
+    dLat: radius * Math.sin(ang),
+    dLng: dLngUnit * Math.cos(ang),
+  }));
+}
+
+function shouldShowCompactCluster(region: Region, groupSize: number) {
+  return groupSize > 1 && region.longitudeDelta >= 0.05;
+}
+
+/** ✅ bounding box aproximado da CAPITAL (município do Rio de Janeiro) */
+function isInCapitalBounds(lat: number, lng: number) {
+  // Aproximação boa do município (pode ajustar se quiser):
+  // Norte/Sul/Leste/Oeste do Rio:
+  const MIN_LAT = -23.10; // mais ao sul (Zona Sul)
+  const MAX_LAT = -22.75; // mais ao norte
+  const MIN_LNG = -43.80; // mais a oeste
+  const MAX_LNG = -43.00; // mais a leste
+  return lat >= MIN_LAT && lat <= MAX_LAT && lng >= MIN_LNG && lng <= MAX_LNG;
+}
+
+export default function MapRJ({
+  loading = false,
+  emptyMessage = "Nenhum evento nessa região",
+  fitOnDataChange = true,
+  regionSelected,
+  ...props
+}: Props) {
   const mapRef = useRef<MapView | null>(null);
   const markerRefs = useRef<Record<string, MapMarker | null>>({});
 
@@ -83,6 +156,14 @@ export default function MapRJ(props: Props) {
       .filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lng));
   }, [props.events, props.barbershops]);
 
+  /** ✅ aplica o recorte de “Capital” nos dados do mapa */
+  const filtered = useMemo(() => {
+    if ((regionSelected ?? "").toLowerCase() === "capital") {
+      return normalized.filter((p) => isInCapitalBounds(p.lat, p.lng));
+    }
+    return normalized;
+  }, [normalized, regionSelected]);
+
   const defaultRegion: Region = {
     latitude: -22.9068,
     longitude: -43.1729,
@@ -93,7 +174,6 @@ export default function MapRJ(props: Props) {
   const [interactive, setInteractive] = useState<boolean>(!!props.isInteractive);
   const [region, setRegion] = useState<Region>(defaultRegion);
 
-  // sincroniza com o controle externo, se vier
   useEffect(() => {
     if (typeof props.isInteractive === "boolean") {
       setInteractive(props.isInteractive);
@@ -106,12 +186,25 @@ export default function MapRJ(props: Props) {
   };
 
   const fitMarkers = useCallback(() => {
-    if (!mapRef.current || normalized.length === 0) return;
-    mapRef.current.fitToCoordinates(
-      normalized.map((n) => ({ latitude: n.lat, longitude: n.lng })),
-      { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true }
-    );
-  }, [normalized]);
+    if (!mapRef.current) return;
+
+    if (filtered.length > 0) {
+      mapRef.current.fitToCoordinates(
+        filtered.map((n) => ({ latitude: n.lat, longitude: n.lng })),
+        { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true }
+      );
+    } else {
+      // sem itens: volta para a visão padrão do RJ
+      mapRef.current.animateToRegion(defaultRegion, 250);
+    }
+  }, [filtered]);
+
+  useEffect(() => {
+    if (!fitOnDataChange) return;
+    if (loading) return;
+    const t = setTimeout(() => fitMarkers(), 50);
+    return () => clearTimeout(t);
+  }, [loading, filtered, fitOnDataChange, fitMarkers]);
 
   const onRegionChangeComplete = (r: Region) => setRegion(r);
 
@@ -130,10 +223,14 @@ export default function MapRJ(props: Props) {
     markerRefs.current[id] = ref;
   };
 
+  /* ===== Agrupamento / spiderfy com base no FILTRO ===== */
+  const groups = useMemo(() => groupByCoord(filtered, 6), [filtered]);
+
+  const showEmpty = !loading && filtered.length === 0;
+
   return (
-    <View style={styles.container} /* o pai mede este container */>
-      {/* Overlay de instrução */}
-      {!interactive && (
+    <View style={styles.container}>
+      {!interactive && !loading && !showEmpty && (
         <View pointerEvents="box-none" style={styles.overlayWrap}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -145,8 +242,7 @@ export default function MapRJ(props: Props) {
         </View>
       )}
 
-      {/* Botão para sair (opcional além do “clicar fora”) */}
-      {interactive && (
+      {interactive && !loading && !showEmpty && (
         <TouchableOpacity
           onPress={() => notifyInteraction(false)}
           style={styles.exitBtn}
@@ -156,15 +252,18 @@ export default function MapRJ(props: Props) {
         </TouchableOpacity>
       )}
 
-      {/* Zoom + / - */}
-      {/* <View pointerEvents="box-none" style={styles.zoomWrap}>
-        <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom(0.6)}>
-          <Text style={styles.zoomTxt}>＋</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.zoomBtn} onPress={() => zoom(1.4)}>
-          <Text style={styles.zoomTxt}>－</Text>
-        </TouchableOpacity>
-      </View> */}
+      {loading && (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>Carregando mapa…</Text>
+        </View>
+      )}
+
+      {showEmpty && (
+        <View style={styles.emptyOverlay} pointerEvents="none">
+          <Text style={styles.emptyText}>{emptyMessage}</Text>
+        </View>
+      )}
 
       <MapView
         ref={mapRef}
@@ -175,48 +274,125 @@ export default function MapRJ(props: Props) {
         onMapReady={fitMarkers}
         onLayout={fitMarkers}
         onRegionChangeComplete={onRegionChangeComplete}
-        scrollEnabled={interactive}
-        zoomEnabled={interactive}
-        rotateEnabled={interactive}
-        pitchEnabled={interactive}
+        scrollEnabled={interactive && !loading && !showEmpty}
+        zoomEnabled={interactive && !loading && !showEmpty}
+        rotateEnabled={interactive && !loading && !showEmpty}
+        pitchEnabled={interactive && !loading && !showEmpty}
         zoomControlEnabled={false}
         minZoomLevel={3}
         maxZoomLevel={20}
-        // dentro do mapa: só ENTRA em modo interativo. Sair é pelo botão ou pelo backdrop do PAI.
-        onPress={() => !interactive && notifyInteraction(true)}
+        onPress={() => !interactive && !loading && !showEmpty && notifyInteraction(true)}
       >
-        {normalized.map((ev) => (
-          <Marker
-            key={ev.id}
-            ref={setMarkerRef(ev.id)}
-            coordinate={{ latitude: ev.lat, longitude: ev.lng }}
-            pinColor="#FF7400"           // 🎯 cor exata do pin
-            anchor={{ x: 0.5, y: 1 }}
-            calloutAnchor={{ x: 0.5, y: 0 }}
-            onPress={() => {
-              if (!interactive) {
-                notifyInteraction(true);
-                setTimeout(() => markerRefs.current[ev.id]?.showCallout(), 120);
-              } else {
-                markerRefs.current[ev.id]?.showCallout();
-              }
-            }}
-            onCalloutPress={() => props.onPressItem?.(ev.id)}
-          >
-            <Callout tooltip onPress={() => props.onPressItem?.(ev.id)}>
-              <View style={styles.popup}>
-                {ev.imageUrl ? (
-                  <Image source={{ uri: ev.imageUrl }} style={styles.image} />
-                ) : null}
-                <Text style={styles.name}>{ev.name}</Text>
-                {ev.address ? <Text style={styles.address}>{ev.address}</Text> : null}
-                <View style={styles.button}>
-                  <Text style={styles.buttonText}>Ver detalhes</Text>
-                </View>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
+        {!loading &&
+          !showEmpty &&
+          groups.map((group) => {
+            const { centerLat, centerLng, items } = group;
+
+            if (shouldShowCompactCluster(region, items.length)) {
+              const key = `cluster-${centerLat}-${centerLng}-${items.length}`;
+              return (
+                <Marker
+                  key={key}
+                  coordinate={{ latitude: centerLat, longitude: centerLng }}
+                  onPress={() => {
+                    mapRef.current?.animateToRegion(
+                      {
+                        latitude: centerLat,
+                        longitude: centerLng,
+                        latitudeDelta: region.latitudeDelta * 0.5,
+                        longitudeDelta: region.longitudeDelta * 0.5,
+                      },
+                      200
+                    );
+                  }}
+                >
+                  <View style={styles.clusterBubble}>
+                    <Text style={styles.clusterText}>{items.length}</Text>
+                  </View>
+                </Marker>
+              );
+            }
+
+            if (items.length > 1) {
+              const offsets = computeSpiderfyOffsets(items.length, centerLat, region);
+              return items.map((ev, idx) => {
+                const off = offsets[idx];
+                const lat = centerLat + off.dLat;
+                const lng = centerLng + off.dLng;
+
+                return (
+                  <Marker
+                    key={ev.id}
+                    ref={setMarkerRef(ev.id)}
+                    coordinate={{ latitude: lat, longitude: lng }}
+                    pinColor="#FF7400"
+                    anchor={{ x: 0.5, y: 1 }}
+                    calloutAnchor={{ x: 0.5, y: 0 }}
+                    onPress={() => {
+                      if (!interactive) {
+                        notifyInteraction(true);
+                        setTimeout(() => markerRefs.current[ev.id]?.showCallout(), 120);
+                      } else {
+                        markerRefs.current[ev.id]?.showCallout();
+                      }
+                    }}
+                    onCalloutPress={() => props.onPressItem?.(ev.id)}
+                  >
+                    <Callout tooltip onPress={() => props.onPressItem?.(ev.id)}>
+                      <View style={styles.popup}>
+                        {ev.imageUrl ? (
+                          <Image source={{ uri: ev.imageUrl }} style={styles.image} />
+                        ) : null}
+                        <Text style={styles.name}>{ev.name}</Text>
+                        {ev.address ? (
+                          <Text style={styles.address}>{ev.address}</Text>
+                        ) : null}
+                        <View style={styles.button}>
+                          <Text style={styles.buttonText}>Ver detalhes</Text>
+                        </View>
+                      </View>
+                    </Callout>
+                  </Marker>
+                );
+              });
+            }
+
+            const ev = items[0]!;
+            return (
+              <Marker
+                key={ev.id}
+                ref={setMarkerRef(ev.id)}
+                coordinate={{ latitude: ev.lat, longitude: ev.lng }}
+                pinColor="#FF7400"
+                anchor={{ x: 0.5, y: 1 }}
+                calloutAnchor={{ x: 0.5, y: 0 }}
+                onPress={() => {
+                  if (!interactive) {
+                    notifyInteraction(true);
+                    setTimeout(() => markerRefs.current[ev.id]?.showCallout(), 120);
+                  } else {
+                    markerRefs.current[ev.id]?.showCallout();
+                  }
+                }}
+                onCalloutPress={() => props.onPressItem?.(ev.id)}
+              >
+                <Callout tooltip onPress={() => props.onPressItem?.(ev.id)}>
+                  <View style={styles.popup}>
+                    {ev.imageUrl ? (
+                      <Image source={{ uri: ev.imageUrl }} style={styles.image} />
+                    ) : null}
+                    <Text style={styles.name}>{ev.name}</Text>
+                    {ev.address ? (
+                      <Text style={styles.address}>{ev.address}</Text>
+                    ) : null}
+                    <View style={styles.button}>
+                      <Text style={styles.buttonText}>Ver detalhes</Text>
+                    </View>
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })}
       </MapView>
     </View>
   );
@@ -253,22 +429,18 @@ const styles = StyleSheet.create({
   },
   exitTxt: { color: "#fff", fontWeight: "600", fontSize: 12 },
 
-  zoomWrap: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    zIndex: 9999,
-    gap: 8,
-  },
-  zoomBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: "rgba(0,0,0,0.6)",
+  clusterBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FF7400",
+    borderWidth: 2,
+    borderColor: "white",
     alignItems: "center",
     justifyContent: "center",
+    elevation: 6,
   },
-  zoomTxt: { color: "#fff", fontSize: 22, fontWeight: "800", lineHeight: 22 },
+  clusterText: { color: "white", fontWeight: "800" },
 
   popup: {
     width: screenWidth * 0.7,
@@ -293,4 +465,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   buttonText: { color: "#fff", fontWeight: "600" },
+
+  loadingOverlay: {
+    position: "absolute",
+    zIndex: 10000,
+    top: 0, right: 0, bottom: 0, left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  loadingText: { fontWeight: "600", color: "#111827" },
+
+  emptyOverlay: {
+    position: "absolute",
+    zIndex: 10000,
+    top: 0, right: 0, bottom: 0, left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  emptyText: { color: "#475569", fontWeight: "600", textAlign: "center" },
 });

@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import {
-    Animated,
-    Dimensions,
-    Easing,
-    InteractionManager,
-    StyleSheet,
-    View
+  Animated,
+  Dimensions,
+  Easing,
+  InteractionManager,
+  StyleSheet,
+  View,
 } from "react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -15,8 +15,12 @@ interface Props {
   onFinish: () => void;
 }
 
+/** ==== TAMANHOS (ajuste aqui se quiser) ==== */
+const LOGO_SIZE = SCREEN_WIDTH * 0.44;
+const PIN_SIZE  = SCREEN_WIDTH * 0.44;
+
 export default function AnimatedIntro({ onFinish }: Props) {
-  const dropY = useRef(new Animated.Value(-180)).current;
+  const dropY = useRef(new Animated.Value(-220)).current; // início mais alto para a queda
   const pinScale = useRef(new Animated.Value(0.9)).current;
   const logoX = useRef(new Animated.Value(160)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -35,7 +39,7 @@ export default function AnimatedIntro({ onFinish }: Props) {
 
     const pinLine = Animated.parallel([
       Animated.spring(dropY, {
-        toValue: -30,
+        toValue: 0, // alinha base com a logo
         speed: 5,
         bounciness: 12,
         useNativeDriver: true,
@@ -176,18 +180,18 @@ const styles = StyleSheet.create({
   bgWhite: { ...StyleSheet.absoluteFillObject, backgroundColor: "#ffffff" },
   introRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end", // alinha pela base
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,   // menos espaço lateral
   },
   introPin: {
-    width: SCREEN_WIDTH * 0.26,
-    height: SCREEN_WIDTH * 0.26,
-    marginRight: 4,
+    width: PIN_SIZE,
+    height: PIN_SIZE,
+    marginRight: 4,         // distância menor
   },
   introLogo: {
-    width: SCREEN_WIDTH * 0.36,
-    height: SCREEN_WIDTH * 0.36,
-    marginLeft: 4,
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    marginLeft: 2,          // distância menor
   },
 });

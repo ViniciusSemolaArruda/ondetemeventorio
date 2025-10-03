@@ -4,7 +4,9 @@
     "slug": "ondetemeventorio",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+
+    "icon": "./assets/icons/pin.png",
+
     "scheme": "ondetemeventorio",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -18,10 +20,13 @@
 
     "android": {
       "package": "com.capadocia.ondetemeventorio",
-      "versionCode": 1,
       "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/icons/pin.png",
         "backgroundColor": "#ffffff"
       },
       "config": {
@@ -42,8 +47,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "expo-web-browser"
     ],
 
     "experiments": { "typedRoutes": true },
@@ -52,7 +56,8 @@
     "extra": {
       "API_BASE_URL": "https://www.ondetemeventorio.com.br",
       "GOOGLE_WEB_CLIENT_ID": "130486548338-89l6lucgtp5670uvu855dndetfiq8eo6.apps.googleusercontent.com",
-      "GOOGLE_ANDROID_CLIENT_ID": "130486548338-2um8iak2hdo86u80vdfo9jbfli6pagvi.apps.googleusercontent.com",
+      "GOOGLE_ANDROID_CLIENT_ID_LOCAL": "130486548338-32g4b5od7fjv54vsc2ja2dus03oh2o33.apps.googleusercontent.com",
+      "GOOGLE_ANDROID_CLIENT_ID_PLAY": "130486548338-2um8iak2hdo86u80vdfo9jblfi6pagvi.apps.googleusercontent.com",
       "router": {},
       "eas": { "projectId": "31fd7ad0-f649-4047-a9d9-f8ebd6e675d8" }
     }

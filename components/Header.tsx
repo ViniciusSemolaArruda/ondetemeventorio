@@ -85,8 +85,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 150,
-    height: 100,
+    width: 235,
+    height: 135,
+    marginLeft: -28,
   },
   buttons: {
     flexDirection: "row",

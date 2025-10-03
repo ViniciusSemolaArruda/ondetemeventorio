@@ -1,4 +1,5 @@
-import EventBadge from "@/components/EventBadge"; // versão RN
+// components/EventosGrid.tsx
+import EventBadge from "@/components/EventBadge";
 import { apiHelpers } from "@/lib/api";
 import { AntDesign } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -17,12 +18,7 @@ import {
 } from "react-native";
 import Toast from "react-native-toast-message";
 
-const screenWidth = Dimensions.get("window").width;
-const PADDING_H = 16;
-const GAP = 8;
-const CARD_WIDTH = Math.min(screenWidth - PADDING_H * 2 - GAP, 420);
-
-// Tipagem do evento
+/* ===================== Tipos ===================== */
 interface Barbershop {
   id: string;
   name: string;
@@ -78,6 +74,12 @@ function toSafeUri(raw?: string | null) {
   return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
 }
 
+/* ===================== Layout (iguais ao EventFixCarousel) ===================== */
+const SCREEN_W = Dimensions.get("window").width;
+const H_GAP = 16;
+const CARD_WIDTH = 260; // <-- igual ao EventFixCarousel
+const CONTAINER_PAD_H = 16;
+
 export default function EventosGrid({
   barbershops,
   isLoggedIn,
@@ -86,14 +88,15 @@ export default function EventosGrid({
 }: Props) {
   const router = useRouter();
 
+  // apenas aprovados
+  const aprovados = useMemo(() => barbershops.filter((b) => b.aprovado), [barbershops]);
+
   const [likesMap, setLikesMap] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // highlights (mais curtido / mais acessado)
   const [mostLikedId, setMostLikedId] = useState<string | null>(null);
   const [mostAccessedId, setMostAccessedId] = useState<string | null>(null);
-
-  // apenas aprovados
-  const aprovados = useMemo(() => barbershops.filter((b) => b.aprovado), [barbershops]);
 
   useEffect(() => {
     const map: Record<string, { liked: boolean; count: number }> = {};
@@ -103,7 +106,6 @@ export default function EventosGrid({
     setLikesMap(map);
   }, [aprovados]);
 
-  // highlights (mais curtido / mais acessado)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -112,9 +114,7 @@ export default function EventosGrid({
         if (!mounted) return;
         setMostLikedId(res.mostLikedId ?? null);
         setMostAccessedId(res.mostAccessedId ?? null);
-      } catch {
-        // silencioso
-      }
+      } catch {}
     })();
     return () => {
       mounted = false;
@@ -137,7 +137,6 @@ export default function EventosGrid({
         }));
       } catch (err) {
         setLikesMap((m) => ({ ...m, [id]: prev }));
-        console.error("Erro ao curtir:", err);
         Toast.show({ type: "error", text1: "Não foi possível curtir agora.", position: "bottom" });
       }
     },
@@ -166,9 +165,7 @@ export default function EventosGrid({
         title: e.name,
         message: `Confira ${e.name}${e.address ? ` em ${e.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${e.id}`,
       });
-    } catch (error) {
-      console.error("Erro ao compartilhar:", error);
-    }
+    } catch {}
   };
 
   if (aprovados.length === 0) {
@@ -180,11 +177,13 @@ export default function EventosGrid({
       <FlatList
         data={aprovados}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingLeft: CONTAINER_PAD_H, paddingRight: CONTAINER_PAD_H }}
+        ItemSeparatorComponent={() => <View style={{ width: H_GAP }} />}
         renderItem={({ item }) => {
           const { liked, count } = likesMap[item.id] || { liked: false, count: 0 };
 
-          // flags dos selos igual ao web
           const dias = daysUntil(item.startDate);
           const showEstaChegando = dias !== null && dias >= 0 && dias <= 5;
           const showAcontecendo = isHappeningNow(item.startDate, item.endDate);
@@ -216,7 +215,7 @@ export default function EventosGrid({
                 )}
 
                 <TouchableOpacity
-                  style={[styles.likeButton, !isLoggedIn && { opacity: 0.9 }]}
+                  style={styles.likeButton}
                   onPress={() => handlePressLike(item.id)}
                 >
                   <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
@@ -225,7 +224,7 @@ export default function EventosGrid({
               </View>
 
               <View style={styles.content}>
-                <Text numberOfLines={2} style={styles.name}>
+                <Text numberOfLines={1} style={styles.name}>
                   {item.name}
                 </Text>
                 {!!item.address && (
@@ -234,7 +233,6 @@ export default function EventosGrid({
                   </Text>
                 )}
 
-                {/* Footer: "Saiba Mais" + Compartilhar na MESMA LINHA */}
                 <View style={styles.footerRow}>
                   <Text style={styles.cta}>Saiba Mais</Text>
                   <TouchableOpacity onPress={() => shareEvent(item)} style={styles.shareInlineButton}>
@@ -273,32 +271,32 @@ export default function EventosGrid({
   );
 }
 
+/* ===================== Estilos ===================== */
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: PADDING_H, paddingTop: 20 },
+  container: { paddingTop: 16 }, // padding horizontal vem do contentContainerStyle
+  emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
+
   card: {
-    width: CARD_WIDTH,
-    alignSelf: "center",
-    backgroundColor: "#fff",
+    width: CARD_WIDTH,                 // 👈 mesmo tamanho do EventFixCarousel
     borderRadius: 12,
+    backgroundColor: "#fff",
     overflow: "hidden",
-    marginBottom: 20,
-    // borda + sombra leve (mais “web”)
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     position: "relative",
   },
+
   imageWrapper: {
     width: "100%",
     aspectRatio: 16 / 9,
     overflow: "hidden",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    // sem fundo acinzentado
   },
   image: { width: "100%", height: "100%" },
 
@@ -326,7 +324,6 @@ const styles = StyleSheet.create({
   likeText: { fontSize: 12, color: "#374151", marginLeft: 6, fontWeight: "600" },
 
   content: { padding: 12, paddingBottom: 14 },
-
   name: { fontWeight: "800", fontSize: 16, color: "#0F172A" },
   address: { fontSize: 12, color: "#6B7280", marginTop: 4, minHeight: 32 },
 
@@ -344,8 +341,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-
-  emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
 
   modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#00000099" },
   modalBox: { backgroundColor: "#fff", padding: 24, borderRadius: 12, width: "80%", alignItems: "center" },

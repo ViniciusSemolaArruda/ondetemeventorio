@@ -12,7 +12,15 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "REANIMATED_DISABLE_CMAKE": "1",
+        "ORG_GRADLE_PROJECT_orgGradleJvmArgs": "-Xmx4096m"
+      }
     }
   },
   "submit": {

@@ -1,27 +1,31 @@
+// Calendar.tsx
 import { Feather } from "@expo/vector-icons"
 import {
-    addMonths,
-    eachDayOfInterval,
-    endOfMonth,
-    format,
-    isAfter,
-    isBefore,
-    isSameMonth,
-    isToday,
-    isWithinInterval,
-    startOfMonth,
-    subMonths,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  isAfter,
+  isBefore,
+  isSameMonth,
+  isToday,
+  isWithinInterval,
+  startOfMonth,
+  subMonths,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import {
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native"
+
+/* ✅ importa o mapeamento de endereço → região */
+import { mapCityToRegion } from "@/lib/rjRegions"
 
 type RawEvent = {
   id: string
@@ -39,7 +43,17 @@ interface Event {
   endDate: Date
 }
 
-export default function Calendar() {
+type Props = {
+  /** região selecionada no filtro ("" = todas) */
+  region?: string
+  /**
+   * (Opcional) se quiser passar os eventos já carregados de fora.
+   * Se não for passado, este componente faz o fetch padrão.
+   */
+  externalEvents?: RawEvent[]
+}
+
+export default function Calendar({ region = "", externalEvents }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [events, setEvents] = useState<Event[]>([])
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -47,14 +61,22 @@ export default function Calendar() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Carrega eventos (ou usa externos)
   useEffect(() => {
     let active = true
     ;(async () => {
       try {
         setLoading(true)
-        const res = await fetch("https://ondetemeventorio.vercel.app/api/events")
-        if (!res.ok) throw new Error("Erro ao carregar eventos")
-        const data: RawEvent[] = await res.json()
+
+        let data: RawEvent[]
+        if (externalEvents) {
+          data = externalEvents
+        } else {
+          const res = await fetch("https://ondetemeventorio.vercel.app/api/events")
+          if (!res.ok) throw new Error("Erro ao carregar eventos")
+          data = await res.json()
+        }
+
         if (!active) return
         const parsed: Event[] = data.map((e) => ({
           ...e,
@@ -71,7 +93,14 @@ export default function Calendar() {
     return () => {
       active = false
     }
-  }, [])
+  }, [externalEvents])
+
+  // ✅ aplica filtro de região (sempre que `region` mudar)
+  const filteredEvents = useMemo(() => {
+    const r = (region || "").trim()
+    if (!r) return events
+    return events.filter((e) => mapCityToRegion(e.address ?? "") === r)
+  }, [events, region])
 
   const days = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -91,7 +120,7 @@ export default function Calendar() {
     (day: Date) => {
       const target = new Date(day)
       target.setHours(0, 0, 0, 0)
-      return events.filter((e) => {
+      return filteredEvents.filter((e) => {
         const start = new Date(e.startDate)
         const end = new Date(e.endDate)
         start.setHours(0, 0, 0, 0)
@@ -99,7 +128,7 @@ export default function Calendar() {
         return isWithinInterval(target, { start, end })
       })
     },
-    [events],
+    [filteredEvents],
   )
 
   const getEventStatus = (event: Event) => {
@@ -120,9 +149,9 @@ export default function Calendar() {
   }
 
   const renderDay = (day: Date | null, index: number) => {
-    const inMonth = day && isSameMonth(day, currentMonth)
+    const inMonth = !!day && isSameMonth(day, currentMonth)
     const dayEvents = day ? getEventsForDay(day) : []
-    const isTodayValid = day && isToday(day) && isSameMonth(day, currentMonth)
+    const isTodayValid = !!day && isToday(day) && isSameMonth(day, currentMonth)
 
     return (
       <TouchableOpacity
@@ -131,7 +160,16 @@ export default function Calendar() {
         onPress={() => day && handleDayPress(day)}
         disabled={!day}
       >
-        {day && <Text style={styles.dayText}>{format(day, "d")}</Text>}
+        {day && (
+          <Text
+            style={[
+              styles.dayText,
+              { color: inMonth ? "#0F172A" : "#CBD5E1" }, // texto sempre visível
+            ]}
+          >
+            {format(day, "d")}
+          </Text>
+        )}
         <View style={styles.eventDots}>
           {dayEvents.slice(0, 3).map((event, i) => {
             const status = getEventStatus(event)
@@ -153,7 +191,9 @@ export default function Calendar() {
         </TouchableOpacity>
         <View style={styles.monthLabel}>
           <Feather name="calendar" size={16} color="#f97316" />
-          <Text style={styles.monthText}>{format(currentMonth, "MMMM yyyy", { locale: ptBR })}</Text>
+          <Text style={styles.monthText}>
+            {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+          </Text>
           <Feather name="sun" size={16} color="#f97316" />
         </View>
         <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}>
@@ -191,7 +231,6 @@ export default function Calendar() {
 
       {/* Modal */}
       <Modal visible={isDialogOpen} transparent animationType="fade">
-
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
@@ -243,6 +282,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
+
   headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -259,7 +299,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textTransform: "capitalize",
     marginHorizontal: 8,
+    color: "#0F172A",
   },
+
   weekdays: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -269,8 +311,9 @@ const styles = StyleSheet.create({
     width: "14.28%",
     textAlign: "center",
     fontWeight: "600",
-    color: "#999",
+    color: "#64748B",
   },
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -283,7 +326,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9FAFB",
   },
   today: {
     borderColor: "#f97316",
@@ -292,6 +335,7 @@ const styles = StyleSheet.create({
   dayText: {
     fontSize: 14,
     fontWeight: "600",
+    color: "#0F172A",
   },
   eventDots: {
     flexDirection: "row",
@@ -303,6 +347,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
+
   legendContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -315,8 +360,9 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
-    color: "#555",
+    color: "#475569",
   },
+
   modalContainer: {
     flex: 1,
     backgroundColor: "#00000099",
@@ -324,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
     padding: 20,
     width: "90%",
     maxHeight: "80%",
@@ -334,6 +380,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 12,
+    color: "#0F172A",
   },
   eventItem: {
     flexDirection: "row",
@@ -342,10 +389,11 @@ const styles = StyleSheet.create({
   },
   eventName: {
     fontWeight: "bold",
+    color: "#0F172A",
   },
   eventDetails: {
     fontSize: 12,
-    color: "#555",
+    color: "#475569",
   },
   closeButton: {
     marginTop: 16,
