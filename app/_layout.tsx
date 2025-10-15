@@ -1,12 +1,7 @@
 // app/_layout.tsx
-import { Href, Slot, usePathname, useRouter } from "expo-router";
-import React, { useEffect } from "react";
-import {
-  Dimensions,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Slot, usePathname, useRouter } from "expo-router";
+import React, { useEffect, useRef } from "react";
+import { Dimensions, Pressable, StyleSheet, View } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 
 import SidebarSheet from "@/components/SidebarSheet";
@@ -18,31 +13,46 @@ import { MenuProvider, useMenu } from "../context/MenuContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// --- Gate mantém sua lógica de redirecionamento ---
+/* =========================
+   Gate: decide só quando não é /
+   e nunca mexe em /SplashScreen
+   ========================= */
 function Gate() {
   const { user, isHydrated } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
+  const redirectedRef = useRef(false);
+
   useEffect(() => {
     if (!isHydrated) return;
-    if (!user) return;
-    if (pathname === "/welcome") return;
 
-    if (user.preferencesSet === false) {
-      router.replace("/welcome" as Href);
+    // 🚫 Não mexe na raiz "/" — o index.tsx já redireciona para /SplashScreen
+    if (pathname === "/") return;
+
+    // 🚫 Nunca redirecione a partir da sua animação
+    if (pathname === "/SplashScreen") return;
+
+    // Daqui para baixo são rotas já dentro do app
+    if (pathname === "/welcome" && user && user.preferencesSet === true) {
+      if (redirectedRef.current) return;
+      redirectedRef.current = true;
+      router.replace("/home");
     }
-  }, [isHydrated, user?.id, user?.preferencesSet, pathname]);
+
+    // Em outras rotas, não faz nada
+  }, [isHydrated, pathname, user?.id, user?.preferencesSet]);
 
   return <Slot />;
 }
 
-// --- Overlay + Sidebar centralizados no layout raiz ---
+/* =======================================
+   Overlay + Sidebar centralizados no root
+   ======================================= */
 function MenuOverlay() {
   const { isOpen, closeMenu } = useMenu();
   const pathname = usePathname();
 
-  // fecha o menu sempre que a rota mudar (garante que não “viaje” pra próxima tela)
   useEffect(() => {
     if (isOpen) closeMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,22 +62,14 @@ function MenuOverlay() {
 
   return (
     <>
-      {/* Backdrop que fecha o menu ao tocar fora */}
       <Pressable style={styles.overlay} onPress={closeMenu} />
-
-      {/* Painel lateral, acima do overlay e interativo */}
-      <AnimatedRN.View
-        entering={SlideInRight}
-        exiting={SlideOutRight}
-        style={styles.sidebar}
-      >
+      <AnimatedRN.View entering={SlideInRight} exiting={SlideOutRight} style={styles.sidebar}>
         <SidebarSheet />
       </AnimatedRN.View>
     </>
   );
 }
 
-// --- Toast com insets.bottom (evita sobrepor a barra/gestos) ---
 function GlobalToast() {
   const insets = useSafeAreaInsets();
   return (
@@ -86,17 +88,13 @@ export default function RootLayout() {
       <AuthProvider>
         <MenuProvider>
           <SafeAreaProvider>
-            {/* SafeArea para o topo */}
             <SafeAreaView edges={["top"]} style={styles.safeTop} />
-
-            {/* Conteúdo + overlay do menu */}
             <SafeAreaView edges={["left", "right", "bottom"]} style={styles.safeBottom}>
               <View style={{ flex: 1 }}>
                 <Gate />
                 <MenuOverlay />
               </View>
             </SafeAreaView>
-
             <GlobalToast />
           </SafeAreaProvider>
         </MenuProvider>
@@ -106,18 +104,14 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  safeTop: { backgroundColor: "#000" },
-  safeBottom: { flex: 1, backgroundColor: "#000" },
-
-  // Backdrop do menu lateral (cinza)
+  safeTop: { backgroundColor: "#fff" },
+  safeBottom: { flex: 1, backgroundColor: "#fff" },
   overlay: {
     position: "absolute",
     top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor: "rgba(0,0,0,0.4)",
     zIndex: 1000,
   },
-
-  // Painel do menu lateral
   sidebar: {
     position: "absolute",
     top: 0, bottom: 0, right: 0,

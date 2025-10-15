@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+// components/AnimatedIntro.tsx
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -7,6 +8,13 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+
+// ✅ use alias "@": ajuste o caminho abaixo SE seus arquivos estiverem em outro lugar
+import pinImg from "@/assets/icons/pin.png";
+
+import logoImg from "@/assets/icons/restoLOGO.png";
+
+
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const ORANGE = "#f97316";
@@ -20,13 +28,17 @@ const LOGO_SIZE = SCREEN_WIDTH * 0.44;
 const PIN_SIZE  = SCREEN_WIDTH * 0.44;
 
 export default function AnimatedIntro({ onFinish }: Props) {
-  const dropY = useRef(new Animated.Value(-220)).current; // início mais alto para a queda
+  const dropY = useRef(new Animated.Value(-220)).current;
   const pinScale = useRef(new Animated.Value(0.9)).current;
   const logoX = useRef(new Animated.Value(160)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
   const bgPulse = useRef(new Animated.Value(0.18)).current;
   const finishedRef = useRef(false);
+
+  // ✅ se a imagem falhar, mostramos uma “caixa” no lugar (sem ícone feio do Android)
+  const [pinFailed, setPinFailed] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const cols = 6;
   const rows = 11;
@@ -38,35 +50,15 @@ export default function AnimatedIntro({ onFinish }: Props) {
     const MIN_TOTAL_MS = 5000;
 
     const pinLine = Animated.parallel([
-      Animated.spring(dropY, {
-        toValue: 0, // alinha base com a logo
-        speed: 5,
-        bounciness: 12,
-        useNativeDriver: true,
-      }),
-      Animated.timing(pinScale, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
+      Animated.spring(dropY, { toValue: 0, speed: 5, bounciness: 12, useNativeDriver: true }),
+      Animated.timing(pinScale, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]);
 
     const logoLine = Animated.sequence([
       Animated.delay(350),
       Animated.parallel([
-        Animated.timing(logoX, {
-          toValue: 0,
-          duration: 720,
-          easing: Easing.out(Easing.exp),
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 720,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
+        Animated.timing(logoX, { toValue: 0, duration: 720, easing: Easing.out(Easing.exp), useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 720, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]),
     ]);
 
@@ -93,22 +85,8 @@ export default function AnimatedIntro({ onFinish }: Props) {
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bgPulse, {
-          toValue: 0.32,
-          duration: 1300,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-          // @ts-ignore
-          isInteraction: false,
-        }),
-        Animated.timing(bgPulse, {
-          toValue: 0.18,
-          duration: 1300,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-          // @ts-ignore
-          isInteraction: false,
-        }),
+        Animated.timing(bgPulse, { toValue: 0.32, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: false, /* @ts-ignore */ isInteraction: false }),
+        Animated.timing(bgPulse, { toValue: 0.18, duration: 1300, easing: Easing.inOut(Easing.quad), useNativeDriver: false, /* @ts-ignore */ isInteraction: false }),
       ])
     ).start();
 
@@ -142,29 +120,33 @@ export default function AnimatedIntro({ onFinish }: Props) {
   }
 
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[styles.introOverlay, { opacity: containerOpacity }]}
-    >
+    <Animated.View pointerEvents="none" style={[styles.introOverlay, { opacity: containerOpacity }]}>
       <View style={styles.bgWhite}>{backgroundMarks}</View>
 
       <View style={styles.introRow}>
-        <Animated.Image
-          source={require("../assets/icons/pin.png")}
-          resizeMode="contain"
-          style={[
-            styles.introPin,
-            { transform: [{ translateY: dropY }, { scale: pinScale }] },
-          ]}
-        />
-        <Animated.Image
-          source={require("../assets/icons/restoLOGO.png")}
-          resizeMode="contain"
-          style={[
-            styles.introLogo,
-            { opacity: logoOpacity, transform: [{ translateX: logoX }] },
-          ]}
-        />
+        {/* PIN */}
+        {pinFailed ? (
+          <View style={[styles.introPin, styles.fallbackBox]} />
+        ) : (
+          <Animated.Image
+            source={pinImg}
+            resizeMode="contain"
+            onError={() => setPinFailed(true)}
+            style={[styles.introPin, { transform: [{ translateY: dropY }, { scale: pinScale }] }]}
+          />
+        )}
+
+        {/* LOGO */}
+        {logoFailed ? (
+          <View style={[styles.introLogo, styles.fallbackBox]} />
+        ) : (
+          <Animated.Image
+            source={logoImg}
+            resizeMode="contain"
+            onError={() => setLogoFailed(true)}
+            style={[styles.introLogo, { opacity: logoOpacity, transform: [{ translateX: logoX }] }]}
+          />
+        )}
       </View>
     </Animated.View>
   );
@@ -180,18 +162,23 @@ const styles = StyleSheet.create({
   bgWhite: { ...StyleSheet.absoluteFillObject, backgroundColor: "#ffffff" },
   introRow: {
     flexDirection: "row",
-    alignItems: "flex-end", // alinha pela base
+    alignItems: "flex-end",
     justifyContent: "center",
-    paddingHorizontal: 8,   // menos espaço lateral
+    paddingHorizontal: 8,
   },
   introPin: {
     width: PIN_SIZE,
     height: PIN_SIZE,
-    marginRight: 4,         // distância menor
+    marginRight: 4,
   },
   introLogo: {
     width: LOGO_SIZE,
     height: LOGO_SIZE,
-    marginLeft: 2,          // distância menor
+    marginLeft: 2,
+  },
+  // fallback visual se imagens falharem
+  fallbackBox: {
+    backgroundColor: "#ffe5d0",
+    borderRadius: 16,
   },
 });

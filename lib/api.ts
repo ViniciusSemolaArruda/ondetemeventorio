@@ -1,4 +1,3 @@
-// lib/api.ts
 import axios, { AxiosInstance } from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -75,7 +74,7 @@ export type ApiEvent = {
   latitude?: number | null;
   longitude?: number | null;
   startDate?: string | null;
-  endDate?: string | null; // opcional se você já usa
+  endDate?: string | null;
   categories?: string[];
   aprovado: boolean;
   likes?: { userId: string }[];
@@ -152,9 +151,11 @@ api.interceptors.response.use(
   }
 );
 
-/* ---------------- Helpers ---------------- */
+/* ======================================================================
+   Helpers (CORE)  ->  renomeamos para coreHelpers para compor com .chat
+====================================================================== */
 
-export const apiHelpers = {
+const coreHelpers = {
   // lista de eventos (com query opcional)
   events: async (query: EventsQuery = {}) => {
     const params = new URLSearchParams();
@@ -185,7 +186,99 @@ export const apiHelpers = {
   saveUserPreferences: async (preferences: string[]) =>
     (await api.post<{ message: string }>("/api/users/preferences", { preferences })).data,
 
-  // ✅ NOVO: destaques globais (usa sua rota Next.js /api/events/highlights)
   getHighlights: async () =>
     (await api.get<HighlightsPayload>("/api/events/highlights")).data,
+};
+
+/* ======================================================================
+   Chat
+====================================================================== */
+
+export type ChatMessage = {
+  id: string;
+  text: string;
+  senderRole: "user" | "support";
+  createdAt: string; // ISO
+};
+
+export type ChatMeResponse = {
+  conversationId: string | null;
+  status?: "open" | "closed" | "none" | string;
+  messages: ChatMessage[];
+};
+
+export type ConversationSummary = {
+  id: string;
+  lastMessageAt: string; // ISO
+  status: "open" | "closed";
+  unreadCount?: number;
+  lastMessagePreview?: string;
+  userId?: string | null;
+};
+
+type ChatApi = {
+  getMyChat: () => Promise<ChatMeResponse>;
+  sendChatMessage: (text: string) => Promise<{ ok: true; message: ChatMessage }>;
+  reopenConversation: (conversationId: string) => Promise<{ ok: true }>;
+  closeConversation: (conversationId: string) => Promise<{ ok: true }>;
+  deleteConversation: (conversationId: string) => Promise<{ ok: true }>;
+  getConversationMessages: (conversationId: string) => Promise<ChatMessage[]>;
+  listConversations: () => Promise<ConversationSummary[]>;
+  replyToConversation: (p: { conversationId: string; text: string }) => Promise<{ ok: true; message: ChatMessage }>;
+};
+
+// helpers
+async function getMyChat() {
+  const res = await api.get<ChatMeResponse>("/api/chat/me");
+  return res.data;
+}
+async function sendChatMessage(text: string) {
+  const res = await api.post<{ ok: true; message: ChatMessage }>("/api/chat/send", { text });
+  return res.data;
+}
+async function reopenConversation(conversationId: string) {
+  const res = await api.post<{ ok: true }>(`/api/chat/${encodeURIComponent(conversationId)}/reopen`);
+  return res.data;
+}
+async function closeConversation(conversationId: string) {
+  const res = await api.post<{ ok: true }>(`/api/chat/${encodeURIComponent(conversationId)}/close`);
+  return res.data;
+}
+async function deleteConversation(conversationId: string) {
+  const res = await api.delete<{ ok: true }>(`/api/chat/${encodeURIComponent(conversationId)}/delete`);
+  return res.data;
+}
+async function getConversationMessages(conversationId: string) {
+  const res = await api.get<{ messages: ChatMessage[] }>(`/api/chat/${encodeURIComponent(conversationId)}/messages`);
+  return res.data.messages;
+}
+async function listConversations() {
+  const res = await api.get<{ conversations: ConversationSummary[] }>("/api/chat/conversations");
+  return res.data.conversations;
+}
+async function replyToConversation(p: { conversationId: string; text: string }) {
+  const res = await api.post<{ ok: true; message: ChatMessage }>("/api/chat/reply", p);
+  return res.data;
+}
+
+export const chatApi: ChatApi = {
+  getMyChat,
+  sendChatMessage,
+  reopenConversation,
+  closeConversation,
+  deleteConversation,
+  getConversationMessages,
+  listConversations,
+  replyToConversation,
+};
+
+/* ======================================================================
+   Export final (apiHelpers com .chat tipado)
+====================================================================== */
+
+export type ApiHelpers = typeof coreHelpers & { chat: ChatApi };
+
+export const apiHelpers: ApiHelpers = {
+  ...coreHelpers,
+  chat: chatApi,
 };

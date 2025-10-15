@@ -1,3 +1,4 @@
+import { useI18n } from "@/context/I18nContext";
 import { useRouter } from "expo-router";
 import { Menu, Undo2 } from "lucide-react-native";
 import React from "react";
@@ -15,11 +16,12 @@ const Header2 = () => {
   const router = useRouter();
   const { user } = useAuth();
   const { openMenu } = useMenu();
+  const { t } = useI18n();
 
-  // Voltar para a tela anterior; se não houver histórico, vai para /
+  // Voltar para a tela anterior; se não houver histórico, vai para /home
   const handleGoBack = () => {
     try {
-      // @ts-ignore - compat com versões antigas
+      // @ts-ignore - compatibilidade
       if (router.canGoBack && router.canGoBack()) {
         router.back();
       } else {
@@ -39,7 +41,7 @@ const Header2 = () => {
     <View style={styles.card}>
       <View style={styles.container}>
         {/* Logo */}
-        <TouchableOpacity onPress={handleLogoPress}>
+        <TouchableOpacity onPress={handleLogoPress} accessibilityLabel="Logo">
           <Image
             source={require("../assets/images/logo01.png")}
             style={styles.logo}
@@ -49,15 +51,22 @@ const Header2 = () => {
 
         <View style={styles.buttons}>
           {/* Botão Voltar */}
-          <TouchableOpacity style={styles.buttonGhost} onPress={handleGoBack}>
+          <TouchableOpacity
+            style={styles.buttonGhost}
+            onPress={handleGoBack}
+            accessibilityRole="button"
+            accessibilityLabel={t("header_back")}
+          >
             <Undo2 size={18} color="#555" />
-            <Text style={styles.buttonText}>Voltar</Text>
+            <Text style={styles.buttonText}>{t("header_back")}</Text>
           </TouchableOpacity>
 
           {/* Botão Menu */}
           <TouchableOpacity
             style={[styles.iconButton, !user && styles.attentionPing]}
             onPress={openMenu}
+            accessibilityRole="button"
+            accessibilityLabel={t("header2_menu_aria")}
           >
             <Menu size={24} color="#333" />
           </TouchableOpacity>
@@ -80,8 +89,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     marginTop: 0,
-    width: "100%",           // força a largura total
-    alignSelf: "center",     // centraliza se estiver dentro de ScrollView
+    width: "100%",
+    alignSelf: "center",
   },
 
   container: {

@@ -1,3 +1,5 @@
+// components/Header2.tsx
+import { useI18n } from "@/context/I18nContext";
 import { useRouter } from "expo-router";
 import { Menu, Undo2 } from "lucide-react-native";
 import React from "react";
@@ -15,8 +17,9 @@ const Header2 = () => {
   const router = useRouter();
   const { user } = useAuth();
   const { openMenu } = useMenu();
+  const { t } = useI18n();
 
-  // Voltar para a tela anterior; se não houver histórico, vai para /colecoes
+  // Voltar para a tela anterior; se não houver histórico, vai para /home
   const handleGoBack = () => {
     try {
       // @ts-ignore - compat com versões antigas
@@ -50,11 +53,12 @@ const Header2 = () => {
           {/* Botão Voltar */}
           <TouchableOpacity style={styles.buttonGhost} onPress={handleGoBack}>
             <Undo2 size={18} color="#555" />
-            <Text style={styles.buttonText}>Voltar</Text>
+            <Text style={styles.buttonText}>{t("header_back") || "Voltar"}</Text>
           </TouchableOpacity>
 
           {/* Botão Menu */}
           <TouchableOpacity
+            accessibilityLabel={t("header2_menu_aria") || "Abrir menu"}
             style={[styles.iconButton, !user && styles.attentionPing]}
             onPress={openMenu}
           >

@@ -1,24 +1,27 @@
 // components/FilterBarRN.tsx
+import { useI18n } from "@/context/I18nContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MapPin } from "lucide-react-native";
-import React, { useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-    ViewStyle,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
 } from "react-native";
-
-// sua fonte de regiões
 import { RJ_REGIONS } from "../lib/rjRegions";
 
 type Props = {
   onApply: (query: { region: string }) => void;
   selectedRegion?: string;
+  persistKey?: string;
   backgroundColor?: string;
   style?: ViewStyle;
-  allLabel?: string; // i18n: texto para "todas as regiões"
+  /** Pode ser chave i18n (ex.: "all_regions") ou texto literal. */
+  allLabel?: string;
+  /** Pode ser chave i18n (ex.: "filter_regions") ou texto literal. */
   title?: string;
 };
 
@@ -26,27 +29,60 @@ const CARD_W = 150;
 const CARD_H = 110;
 const GAP = 12;
 
+const DEFAULT_STORAGE_KEY = "@ote:selectedRegion";
+
 export default function FilterBarRN({
   onApply,
   selectedRegion = "",
-  backgroundColor = "transparent", // não cria “caixa” diferente
+  persistKey = DEFAULT_STORAGE_KEY,
+  backgroundColor = "transparent",
   style,
-  allLabel = "Todas as regiões",
-  title = "Regiões",
+  // use chaves i18n por padrão
+  allLabel = "filter_all_regions",
+  title = "filter_regions",
 }: Props) {
-  // "" = todas as regiões
+  const { t } = useI18n();
+  const [currentRegion, setCurrentRegion] = useState<string>(selectedRegion ?? "");
+
+  // reflete mudanças do pai
+  useEffect(() => {
+    setCurrentRegion(selectedRegion ?? "");
+  }, [selectedRegion]);
+
   const data = useMemo(() => ["", ...RJ_REGIONS], []);
 
-  const apply = (value: string) => onApply({ region: value });
+  // helper: tenta traduzir e cai para o literal se não existir a chave
+  const tr = useCallback(
+    (maybeKeyOrText: string) => {
+      const translated = t(maybeKeyOrText);
+      if (!translated || translated === maybeKeyOrText) return maybeKeyOrText;
+      return translated;
+    },
+    [t]
+  );
+
+  const titleText = useMemo(() => tr(title).trim(), [title, tr]);
+  const allLabelText = useMemo(() => tr(allLabel), [allLabel, tr]);
+
+  const handleSelect = useCallback(
+    async (value: string) => {
+      setCurrentRegion(value);
+      try {
+        await AsyncStorage.setItem(persistKey, value);
+      } catch {}
+      onApply({ region: value });
+    },
+    [onApply, persistKey]
+  );
 
   const renderItem = ({ item }: { item: string }) => {
-    const value = item; // "" | nome da região
-    const label = item === "" ? allLabel : item;
-    const selected = (selectedRegion ?? "") === value;
+    const value = item;
+    const label = item === "" ? allLabelText : item; // regiões são textos fixos
+    const selected = (currentRegion ?? "") === value;
 
     return (
       <Pressable
-        onPress={() => apply(value)}
+        onPress={() => handleSelect(value)}
         style={[
           styles.card,
           {
@@ -75,12 +111,13 @@ export default function FilterBarRN({
 
   return (
     <View style={[styles.wrap, { backgroundColor }, style]}>
-      {/* título no mesmo padrão das outras seções */}
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+      {/* Só renderiza o header se houver título não-vazio */}
+      {titleText.length > 0 && (
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>{titleText}</Text>
+        </View>
+      )}
 
-      {/* lista horizontal SEM padding lateral extra */}
       <FlatList
         data={data}
         horizontal
@@ -95,27 +132,16 @@ export default function FilterBarRN({
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    // sem paddingHorizontal aqui — o pai (Home) já tem padding 16
-    // mantenha apenas um leve espaço vertical
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
+  // sem padding extra para não “empurrar” verticalmente
+  wrap: { paddingTop: 0, paddingBottom: 0 },
   headerRow: {
-    // sem paddingHorizontal — alinha com as demais sections
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 6, // gap menor (alinha melhor com Quick Search)
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1a1a1a",
-  },
-  listContent: {
-    paddingHorizontal: 0, // importantíssimo para alinhar à esquerda
-  },
+  title: { fontSize: 18, fontWeight: "bold", color: "#1a1a1a" },
+  listContent: { paddingHorizontal: 0, paddingVertical: 0 },
   card: {
     borderWidth: 1,
     borderRadius: 12,
@@ -130,10 +156,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  cardText: {
-    marginTop: 8,
-    textAlign: "center",
-    fontSize: 13,
-    fontWeight: "600",
-  },
+  cardText: { marginTop: 8, textAlign: "center", fontSize: 13, fontWeight: "600" },
 });

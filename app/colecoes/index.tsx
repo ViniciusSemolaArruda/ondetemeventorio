@@ -1,11 +1,16 @@
 // app/colecoes/index.tsx
 import Footer from "@/components/footer";
 import Header2 from "@/components/Header2";
-import { quickSearchOptions2 } from "@/constants/search2";
+import {
+  labelFor,
+  quickSearchOptions,
+  serviceFor,
+  type QuickSearchOption,
+} from "@/constants/search2"; // ✅ usa o search2.ts correto
+import { useI18n } from "@/context/I18nContext";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
-import { Search as SearchIcon } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Dimensions,
   FlatList,
@@ -13,7 +18,6 @@ import {
   ImageSourcePropType,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -25,8 +29,15 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const AVAILABLE_WIDTH = SCREEN_WIDTH - H_PADDING * 2 - GAP * (NUM_COLUMNS - 1);
 const ITEM_SIZE = Math.floor(AVAILABLE_WIDTH / NUM_COLUMNS);
 
-// Mapeamento de imagens
-const imageMap: Record<string, any> = {
+/** ======================
+ *  MAPA DE IMAGENS (cards)
+ *  ======================
+ *  Usa os mesmos nomes que você colocou em /app/_constants/search2.ts
+ *  Observações:
+ *   - imageUrl vem como "/arquivo.png" → removemos a "/" e tentamos o mapa.
+ *   - cobrimos o alias "chorinhi-gpt.png" → "chorinho-gpt.png".
+ */
+const CARD_FILES: Record<string, any> = {
   "SAPUCAI1.png": require("../../assets/icons/SAPUCAI1.png"),
   "roda-gpt.png": require("../../assets/icons/roda-gpt.png"),
   "bossa-gpt.png": require("../../assets/icons/bossa-gpt.png"),
@@ -38,28 +49,65 @@ const imageMap: Record<string, any> = {
   "rock-gpt.png": require("../../assets/icons/rock-gpt.png"),
   "blues-gpt.png": require("../../assets/icons/blues-gpt.png"),
   "jazz-gpt.png": require("../../assets/icons/jazz-gpt.png"),
-  "chorinhi-gpt.png": require("../../assets/icons/chorinhi-gpt.png"),
+  // ✅ alias correto para chorinho
+  "chorinho-gpt.png": require("../../assets/icons/chorinho-gpt.png"),
   "festivais-gpt.png": require("../../assets/icons/festivais-gpt.png"),
   "festas-gpt.png": require("../../assets/icons/festas-gpt.png"),
+  "boate-gpt.png": require("../../assets/icons/boate-gpt.png"),
+  "parques-gpt.png": require("../../assets/icons/parques-gpt.png"),
   "bar-gpt.png": require("../../assets/icons/bar-gpt.png"),
   "restaurantes-gpt.png": require("../../assets/icons/restaurantes-gpt.png"),
   "cristo_redentor_card_size.png": require("../../assets/icons/cristo_redentor_card_size.png"),
-  "cultural-png.png": require("../../assets/icons/cultural-png.png"),
+  "cinema-gpt.png": require("../../assets/icons/cinema-gpt.png"),
+  "teatro-gpt.png": require("../../assets/icons/teatro-gpt.png"),
+  "standup-gpt.png": require("../../assets/icons/standup-gpt.png"),
+  "familia-gpt.png": require("../../assets/icons/familia-gpt.png"),
   "esporte3-gpt.png": require("../../assets/icons/esporte3-gpt.png"),
   "gastronomia-gpt.png": require("../../assets/icons/gastronomia-gpt.png"),
   "feiras-gpt.png": require("../../assets/icons/feiras-gpt.png"),
   "seminario-gpt.png": require("../../assets/icons/seminario-gpt.png"),
   "simposio-gpt.png": require("../../assets/icons/simposio-gpt.png"),
+  "ambiente-gpt.png": require("../../assets/icons/ambiente-gpt.png"),
+  "agro-gpt.png": require("../../assets/icons/agro-gpt.png"),
+};
+// também deixo as chaves em lowercase para tolerar diferenças de caixa
+const CARD_FILES_LC: Record<string, any> = Object.fromEntries(
+  Object.keys(CARD_FILES).map((k) => [k.toLowerCase(), CARD_FILES[k]])
+);
+
+// fallback genérico
+const FALLBACK = require("../../assets/icons/show.png");
+
+// corrige nomes errados que possam vir no imageUrl
+const NAME_ALIASES: Record<string, string> = {
+  "chorinho-gpt.png": "chorinho-gpt.png",
 };
 
-const getImageSource = (imageName: string): ImageSourcePropType => {
-  return imageMap[imageName] ?? require("../../assets/icons/show.png");
-};
+function resolveImageSource(imageUrl: string): ImageSourcePropType {
+  if (!imageUrl) return FALLBACK;
+  // remove barras iniciais
+  const raw = imageUrl.replace(/^\/+/, "");
+  const alias = NAME_ALIASES[raw] ?? raw;
+
+  // 1) tenta exact match (case-sensitive)
+  if (CARD_FILES[alias]) return CARD_FILES[alias];
+
+  // 2) tenta case-insensitive
+  const lc = alias.toLowerCase();
+  if (CARD_FILES_LC[lc]) return CARD_FILES_LC[lc];
+
+  // 3) se vier http(s), usa remoto
+  if (/^https?:\/\//i.test(imageUrl)) return { uri: imageUrl };
+
+  // 4) fallback
+  return FALLBACK;
+}
 
 export default function ColecoesScreen() {
   const router = useRouter();
+  const { t } = useI18n();
 
-  // 🔎 busca por NOME (igual ao web quando digita na barra)
+  // 🔎 busca por NOME (igual ao web quando digita na barra) — mantido caso queira reativar
   const [searchText, setSearchText] = useState("");
 
   const goSearchByTitle = () => {
@@ -68,12 +116,14 @@ export default function ColecoesScreen() {
     router.push(`/barbershops?title=${encodeURIComponent(q)}` as Href);
   };
 
+  const data = useMemo<QuickSearchOption[]>(() => quickSearchOptions, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <FlatList
-        data={quickSearchOptions2}
+        data={data}
         numColumns={NUM_COLUMNS}
-        keyExtractor={(item) => item.title}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={{
           paddingBottom: 32,
           rowGap: GAP,
@@ -85,62 +135,42 @@ export default function ColecoesScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* Header fora da lista */}
             <Header2 />
-
-            {/* Barra de busca por título */}
             <View style={{ paddingHorizontal: H_PADDING, paddingTop: 16 }}>
-              <View style={styles.searchRow}>
-                <View style={styles.searchWrapper}>
-                  <SearchIcon color="#9ca3af" size={18} style={{ marginRight: 6 }} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Buscar por nome do evento..."
-                    placeholderTextColor="#999"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    returnKeyType="search"
-                    onSubmitEditing={goSearchByTitle}
-                  />
-                </View>
-                <TouchableOpacity style={styles.button} onPress={goSearchByTitle}>
-                  <Text style={styles.buttonText}>Buscar</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.title}>
-                Experiências incríveis para todos os gostos, especialmente o seu!
-              </Text>
+              <Text style={styles.title}>{t("colecoes_title")}</Text>
             </View>
           </>
         }
-        // ✅ Footer no final do scroll
         ListFooterComponent={<Footer />}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.item, { width: ITEM_SIZE, height: ITEM_SIZE }]}
-            activeOpacity={0.85}
-            // 👉 Igual ao web QuickSearch: navega com ?service=...
-            onPress={() =>
-              router.push(
-                `/barbershops?service=${encodeURIComponent(item.title)}` as Href
-              )
-            }
-          >
-            <Image source={getImageSource(item.imageUrl)} style={styles.image} resizeMode="cover" />
-            <View style={styles.cardOverlay} />
-            <View style={styles.textContainer}>
-              <Text style={styles.text}>{item.title}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const label = labelFor(item, t);               // traduz (fallback -> title)
+          const serviceValue = serviceFor(item);         // valor exato do DB
+          const source = resolveImageSource(item.imageUrl);
+
+          return (
+            <TouchableOpacity
+              style={[styles.item, { width: ITEM_SIZE, height: ITEM_SIZE }]}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push(
+                  `/barbershops?service=${encodeURIComponent(serviceValue)}` as Href
+                )
+              }
+            >
+              <Image source={source} style={styles.image} resizeMode="cover" />
+              <View style={styles.cardOverlay} />
+              <View style={styles.textContainer}>
+                <Text style={styles.text}>{label}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
-      {/* 🚫 NADA DE OVERLAY AQUI — o overlay do menu fica só no _layout.tsx */}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // título abaixo da barra de busca
   title: {
     fontSize: 18,
     fontWeight: "bold",
@@ -148,43 +178,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: "#111",
   },
-
-  // 🔎 estilos da busca
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  searchWrapper: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderColor: "#d1d5db",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: "#fff",
-  },
-  input: {
-    flex: 1,
-    height: 40,
-    fontSize: 15,
-    color: "#000",
-  },
-  button: {
-    backgroundColor: "#FF7400",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-
-  // grid de cards
   item: {
     borderRadius: 12,
     overflow: "hidden",
@@ -198,7 +191,7 @@ const styles = StyleSheet.create({
   },
   cardOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
   },
   textContainer: {
     ...StyleSheet.absoluteFillObject,

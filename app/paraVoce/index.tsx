@@ -4,8 +4,12 @@ import Footer from "@/components/footer";
 import Header2 from "@/components/Header2";
 import SidebarSheet from "@/components/SidebarSheet";
 import { useAuth } from "@/context/AuthContext";
+import { useI18n } from "@/context/I18nContext";
 import { useMenu } from "@/context/MenuContext";
 import { ApiEvent, apiHelpers } from "@/lib/api";
+import { mapCityToRegion } from "@/lib/rjRegions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -18,62 +22,87 @@ import {
   View,
 } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
-
 type GridItem = ApiEvent & {
   likesCount?: number;
   likedByUser?: boolean;
 };
+
+const STORAGE_KEY_REGION = "@ote:selectedRegion";
 
 export default function ParaVoceScreen() {
   const { user } = useAuth();
   const { isOpen, closeMenu } = useMenu();
   const [loading, setLoading] = useState(true);
   const [barbershops, setBarbershops] = useState<GridItem[]>([]);
-
+  const [region, setRegion] = useState<string>("");
+const { t } = useI18n();
   const SCREEN_WIDTH = Dimensions.get("window").width;
 
-  // Carrega “Eventos para você” (aprovados + preferências do usuário)
+  // pega região: ?region tem prioridade; senão AsyncStorage
+  const { region: regionFromParams } = useLocalSearchParams<{ region?: string }>();
+
+  useEffect(() => {
+    (async () => {
+      const urlRegion = (regionFromParams ?? "").toString().trim();
+      if (urlRegion) {
+        setRegion(urlRegion);
+        try {
+          await AsyncStorage.setItem(STORAGE_KEY_REGION, urlRegion);
+        } catch {}
+        return;
+      }
+      try {
+        const saved = await AsyncStorage.getItem(STORAGE_KEY_REGION);
+        if (typeof saved === "string") setRegion(saved);
+      } catch {}
+    })();
+  }, [regionFromParams]);
+
+  // Carrega “Eventos para você” e filtra por região selecionada
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const allEvents = await apiHelpers.events();
 
-        const filteredEvents = allEvents.filter((evento) => {
-          if (!evento.aprovado) return false;
+        // 1) só aprovados
+        const approved = (allEvents as ApiEvent[]).filter((e) => !!e.aprovado);
 
+        // 2) filtro por preferências (se o usuário tiver)
+        const byPrefs = approved.filter((evento) => {
           const hasValidPreferences =
             user?.preferencesSet &&
             Array.isArray(user.preferences) &&
             user.preferences.length > 0;
 
-          if (hasValidPreferences) {
-            return (
-              Array.isArray(evento.categories) &&
-              evento.categories.some((cat) => user.preferences!.includes(cat))
-            );
-          }
+          if (!hasValidPreferences) return true;
 
-          return true;
+          return (
+            Array.isArray(evento.categories) &&
+            evento.categories.some((cat) => user!.preferences!.includes(cat))
+          );
         });
 
-        const enriched: GridItem[] = filteredEvents.map((evento) => {
+        // 3) filtro por região selecionada (se houver)
+        const regionTrim = (region || "").trim();
+        const byRegion = regionTrim
+          ? byPrefs.filter((e) => mapCityToRegion(e.address ?? "") === regionTrim)
+          : byPrefs;
+
+        // 4) enriquecer like info
+        const enriched: GridItem[] = byRegion.map((evento) => {
           const likesCount = Array.isArray(evento.likes)
             ? evento.likes.length
-            : evento.likesCount ?? 0;
+            : (evento as any).likesCount ?? 0;
 
-        const likedByUser = user?.id
-          ? evento.likes?.some((l) => l.userId === user.id)
-          : evento.likedByUser ?? false;
+          const likedByUser = user?.id
+            ? !!evento.likes?.some((l: any) => l.userId === user.id)
+            : (evento as any).likedByUser ?? false;
 
-          return {
-            ...evento,
-            likesCount,
-            likedByUser,
-          };
+          return { ...evento, likesCount, likedByUser };
         });
 
-        // limite opcional (como estava antes)
-        setBarbershops(enriched.slice(0, 10));
+        setBarbershops(enriched.slice(0, 10)); // limite opcional
       } catch (error) {
         console.error("Erro ao carregar eventos:", error);
       } finally {
@@ -82,7 +111,8 @@ export default function ParaVoceScreen() {
     };
 
     fetchData();
-  }, [user?.id, user?.preferencesSet, (user?.preferences ?? []).join("|")]);
+    // refaz quando mudar região ou preferências
+  }, [region, user?.id, user?.preferencesSet, (user?.preferences ?? []).join("|")]);
 
   // 🔁 Toggle Like com optimistic update
   const onToggleLike = useCallback(
@@ -94,10 +124,8 @@ export default function ParaVoceScreen() {
         return;
       }
 
-      // estado anterior p/ rollback em caso de erro
       const prev = barbershops;
 
-      // optimistic update
       setBarbershops((curr) =>
         curr.map((e) =>
           e.id === id
@@ -111,15 +139,14 @@ export default function ParaVoceScreen() {
       );
 
       try {
-        const data = await apiHelpers.likeEvent(id); // { liked: boolean, count: number }
+        const data = await apiHelpers.likeEvent(id); // { liked, count }
         setBarbershops((curr) =>
           curr.map((e) =>
             e.id === id
               ? {
                   ...e,
                   likedByUser: !!data.liked,
-                  likesCount:
-                    typeof data.count === "number" ? data.count : e.likesCount,
+                  likesCount: typeof data.count === "number" ? data.count : e.likesCount,
                 }
               : e
           )
@@ -127,8 +154,7 @@ export default function ParaVoceScreen() {
       } catch (err) {
         console.error("Erro ao curtir/descurtir:", err);
         Alert.alert("Erro", "Não foi possível curtir agora. Tente novamente.");
-        // rollback
-        setBarbershops(prev);
+        setBarbershops(prev); // rollback
       }
     },
     [barbershops, user?.id]
@@ -141,25 +167,30 @@ export default function ParaVoceScreen() {
         renderItem={null}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={
-          <View
-            style={{ flexGrow: 1, minHeight: Dimensions.get("window").height }}
-          >
+          <View style={{ flexGrow: 1, minHeight: Dimensions.get("window").height }}>
             <View style={styles.container}>
               <Header2 />
               <View style={styles.content}>
-                <Text style={styles.title}>Para Você</Text>
+                
+                <Text style={styles.title}>
+  {region ? `${t("events_for_you")} — ${region}` : t("events_for_you")}
+</Text>
 
                 {loading ? (
                   <ActivityIndicator size="large" color="#f97316" />
                 ) : (
                   <BarbershopGrid
                     barbershops={barbershops}
-                    // ⬇️ Passe o handler de like para o grid:
                     onToggleLike={onToggleLike}
-                    // (se seu Grid também usa checagem de login, pode passar)
                     isLoggedIn={!!user}
                   />
                 )}
+
+                {!loading && barbershops.length === 0 ? (
+                  <Text style={{ color: "#9ca3af", marginTop: 12 }}>
+                    Nenhum evento encontrado{region ? ` para a região ${region}` : ""}.
+                  </Text>
+                ) : null}
               </View>
             </View>
           </View>

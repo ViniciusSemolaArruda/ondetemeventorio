@@ -1,52 +1,39 @@
 import React, { memo, useMemo } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type Props = {
-  selected: string[];
+  selected: string[];                 // mantém compat para quem usa múltipla
   onChange: (next: string[]) => void;
   title?: string;
+  single?: boolean;                   // << novo: modo seleção única
 };
 
-// Lista padrão (ordenada depois via useMemo)
 const BASE_CATEGORIES = [
-  "Cultural",
-  "Esportes",
-  "Gastronomia",
-  "Carnaval",
-  "Rock",
-  "Religião",
-  "MPB",
-  "Chorinho",
-  "Forró",
-  "Funk",
-  "Passinho",
-  "Feiras",
-  "Simpósios",
-  "Festivais",
-  "Seminários",
-  "Rodas de Samba",
-  "Bossa Nova",
-  "Blues",
-  "Jazz",
-  "Eletrônica",
-  "Festas",
-  "Bares",
-  "Restaurantes",
+  "Cinema","Esportes","Gastronomia","Carnaval","Rock","Religiões","MPB","Chorinho","Forró",
+  "Funk","Passinho","Feiras","Simpósios","Festivais","Seminários","Rodas de Samba","Bossa Nova",
+  "Blues","Jazz","Eletrônica","Festas","Bares","Restaurantes","Parques","Agronegócio",
+  "Meio Ambiente","Teatro","Família","Stand Up Comedy",
 ];
 
-function CategoriesSection({ selected, onChange, title = "Classifique seu evento" }: Props) {
+function CategoriesSection({ selected, onChange, title = "Classifique seu evento", single = false }: Props) {
   const data = useMemo(() => [...BASE_CATEGORIES].sort(), []);
 
   const toggle = (cat: string) => {
-    const isSelected = selected.includes(cat);
-    const next = isSelected ? selected.filter((c) => c !== cat) : [...selected, cat];
-    onChange(next);
+    if (single) {
+      // seleção única: substitui tudo por [cat] (ou [] se tocar na mesma)
+      const isSelected = selected[0] === cat;
+      onChange(isSelected ? [] : [cat]);
+    } else {
+      const isSelected = selected.includes(cat);
+      const next = isSelected ? selected.filter((c) => c !== cat) : [...selected, cat];
+      onChange(next);
+    }
   };
 
   const renderItem = ({ item }: { item: string }) => {
@@ -54,10 +41,10 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
     return (
       <TouchableOpacity
         key={item}
-        style={styles.itemRow}
+        style={[styles.itemRow, checked && styles.itemRowChecked]}
         activeOpacity={0.7}
         onPress={() => toggle(item)}
-        accessibilityRole="checkbox"
+        accessibilityRole={single ? "radio" : "checkbox"}
         accessibilityState={{ checked }}
         accessibilityLabel={item}
       >
@@ -70,8 +57,6 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{title}</Text>
-
-      {/* Grid responsivo em 2 colunas (padrão). Ajuste para 3/4 se quiser. */}
       <FlatList
         data={data}
         keyExtractor={(c) => c}
@@ -86,21 +71,10 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: 24,
-  },
-  label: {
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  listContent: {
-    gap: 8,
-  },
-  column: {
-    gap: 8,
-  },
+  wrapper: { marginBottom: 24 },
+  label: { marginBottom: 8, fontSize: 14, fontWeight: "600", color: "#374151" },
+  listContent: { gap: 8 },
+  column: { gap: 8 },
   itemRow: {
     flex: 1,
     minHeight: 40,
@@ -111,6 +85,9 @@ const styles = StyleSheet.create({
     borderColor: "#D1D5DB",
     flexDirection: "row",
     alignItems: "center",
+  },
+  itemRowChecked: {
+    borderColor: "#2563eb",
   },
   checkbox: {
     width: 18,
@@ -125,10 +102,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563eb",
     borderColor: "#2563eb",
   },
-  itemLabel: {
-    fontSize: 13,
-    color: "#374151",
-  },
+  itemLabel: { fontSize: 13, color: "#374151" },
 });
 
 export default memo(CategoriesSection);

@@ -1,3 +1,4 @@
+// components/AddressForm.tsx
 import MapRJ from "@/components/MapRJ";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -12,6 +13,10 @@ import {
 } from "react-native";
 
 interface Props {
+  // venue (obrigatório pela API, mas não afeta geocoding)
+  onChangeVenue: (value: string) => void;
+  defaultVenue?: string;
+
   onChangeLocationString: (value: string) => void;
   onChangeStreet: (value: string) => void;
   onChangeNumber: (value: string) => void;
@@ -19,12 +24,14 @@ interface Props {
   onChangeNeighborhood: (value: string) => void;
   onChangeCity: (value: string) => void;
   onChangeState: (value: string) => void;
-  defaultValue?: string;
+  defaultValue?: string; // endereço completo opcional
 }
 
 type PreviewPoint = { lat: number; lng: number; address?: string | null };
 
 const AddressForm = ({
+  onChangeVenue,
+  defaultVenue,
   onChangeLocationString,
   onChangeStreet,
   onChangeNumber,
@@ -34,12 +41,16 @@ const AddressForm = ({
   onChangeState,
   defaultValue,
 }: Props) => {
+  // venue
+  const [venue, setVenue] = useState(defaultVenue ?? "");
+
   const [cep, setCep] = useState("");
   const [showMap, setShowMap] = useState(false);
 
   const [street, setStreet] = useState("");
-  const [number, setNumber] = useState("");
-  const [complement, setComplement] = useState("");
+  const [number, setNumber] = useState("");            // obrigatório
+  const [complement, setComplement] = useState("");   // NÃO participa da geocodificação
+  const [noComplement, setNoComplement] = useState(false);
   const [neighborhood, setNeighborhood] = useState("");
   const [city, setCity] = useState("Rio de Janeiro");
   const [state, setState] = useState("RJ");
@@ -48,34 +59,53 @@ const AddressForm = ({
   const [preview, setPreview] = useState<PreviewPoint | null>(null);
   const [geocoding, setGeocoding] = useState(false);
 
-  // Ao receber um valor default (endereço completo), preenche a string e tenta geocodificar quando abrir o mapa
+  // hidrata venue inicial e propaga
   useEffect(() => {
-    if (defaultValue) {
-      onChangeLocationString(defaultValue);
-    }
-  }, [defaultValue, onChangeLocationString]);
+    setVenue(defaultVenue ?? "");
+    onChangeVenue(defaultVenue ?? "");
+  }, [defaultVenue, onChangeVenue]);
 
-  // Monta a string de endereço e envia pro pai
+  // Endereço completo para exibição/envio (inclui complemento)
   const locationString = useMemo(() => {
+    const streetWithNumber =
+      street && number ? `${street}, ${number}` : street || "";
+
     const parts = [
-      street && `${street}${number ? `, ${number}` : ""}`,
-      complement,
+      streetWithNumber,
+      !noComplement && complement ? complement : null, // complemento só aqui
       neighborhood,
       city,
       state,
       "Brasil",
-    ].filter(Boolean);
-    return parts.join(", ");
-  }, [street, number, complement, neighborhood, city, state]);
+    ].filter(Boolean) as string[];
 
+    return parts.join(", ");
+  }, [street, number, complement, noComplement, neighborhood, city, state]);
+
+  // String de geocodificação (SEM complemento)
+  const geoString = useMemo(() => {
+    const streetWithNumber =
+      street && number ? `${street}, ${number}` : street || "";
+
+    const parts = [
+      streetWithNumber,
+      neighborhood,
+      city,
+      state,
+      "Brasil",
+    ].filter(Boolean) as string[];
+
+    return parts.join(", ");
+  }, [street, number, neighborhood, city, state]);
+
+  // Atualiza o pai com o endereço completo (incluindo complemento)
   useEffect(() => {
-    // Se veio um defaultValue, prioriza ele; senão usa a string composta
     onChangeLocationString(defaultValue?.trim() ? defaultValue.trim() : locationString);
   }, [locationString, defaultValue, onChangeLocationString]);
 
-  // Geocodifica endereço atual (string composta ou default)
+  // Geocodifica SEM complemento
   const geocodeCurrentAddress = useCallback(async () => {
-    const query = (defaultValue?.trim() || locationString).trim();
+    const query = (defaultValue?.trim() || geoString).trim();
     if (!query) return;
 
     try {
@@ -91,9 +121,12 @@ const AddressForm = ({
         },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { lat: string; lon: string; display_name?: string }[];
+      const data = (await res.json()) as {
+        lat: string;
+        lon: string;
+        display_name?: string;
+      }[];
       if (!Array.isArray(data) || data.length === 0) {
-        // limpa preview se não achar
         setPreview(null);
         return;
       }
@@ -101,7 +134,8 @@ const AddressForm = ({
       setPreview({
         lat: Number(lat),
         lng: Number(lon),
-        address: display_name || query,
+        // endereço mostrado no popup pode ser o COMPLETO (com complemento)
+        address: locationString || display_name || query,
       });
     } catch (e) {
       console.warn("Geocoding error:", e);
@@ -109,9 +143,9 @@ const AddressForm = ({
     } finally {
       setGeocoding(false);
     }
-  }, [locationString, defaultValue]);
+  }, [geoString, defaultValue, locationString]);
 
-  // Quando ligar o Mostrar Mapa, geocodifica se ainda não tiver preview
+  // Quando ligar “Mostrar Mapa”, geocodifica se ainda não tiver preview
   useEffect(() => {
     if (showMap && !preview && !geocoding) {
       geocodeCurrentAddress();
@@ -149,23 +183,38 @@ const AddressForm = ({
     }
   };
 
-  // Dados para o MapRJ (um único ponto)
+  // Dados para o MapRJ
   const previewEvent = useMemo(() => {
     if (!preview) return [];
     return [
       {
         id: "addr-preview",
-        name: street || "Local do evento",
+        name: venue || street || "Local do evento",
         lat: preview.lat,
         lng: preview.lng,
-        address: preview.address ?? locationString,
+        address: preview.address ?? locationString, // mostra o completo
         imageUrl: null,
       },
     ];
-  }, [preview, street, locationString]);
+  }, [preview, street, venue, locationString]);
 
   return (
     <ScrollView style={styles.container}>
+      {/* VENUE */}
+      <Text style={styles.label}>
+        Nome do local (venue) <Text style={{ color: "#ef4444" }}>*</Text>
+      </Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Ex.: Lapa 40 Graus, Circo Voador, Quadra da Portela…"
+        value={venue}
+        onChangeText={(text) => {
+          setVenue(text);
+          onChangeVenue(text);
+        }}
+      />
+
+      {/* CEP */}
       <Text style={styles.label}>CEP</Text>
       <TextInput
         style={styles.input}
@@ -187,7 +236,9 @@ const AddressForm = ({
         }}
       />
 
-      <Text style={styles.label}>Número</Text>
+      <Text style={styles.label}>
+        Número <Text style={{ color: "#ef4444" }}>*</Text>
+      </Text>
       <TextInput
         style={styles.input}
         placeholder="Número"
@@ -198,16 +249,35 @@ const AddressForm = ({
         }}
       />
 
-      <Text style={styles.label}>Complemento</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Complemento"
-        value={complement}
-        onChangeText={(text) => {
-          setComplement(text);
-          onChangeComplement(text);
-        }}
-      />
+      <View style={styles.inlineRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Complemento</Text>
+          <TextInput
+            style={[styles.input, noComplement && styles.inputDisabled]}
+            placeholder="Apto, loja, fundos… (não afeta o mapa)"
+            value={complement}
+            editable={!noComplement}
+            onChangeText={(text) => {
+              setComplement(text);
+              if (!noComplement) onChangeComplement(text); // só informativo
+            }}
+          />
+        </View>
+
+        <View style={styles.snToggle}>
+          <Text style={styles.labelSmall}>Sem complemento</Text>
+          <Switch
+            value={noComplement}
+            onValueChange={(v) => {
+              setNoComplement(v);
+              if (v) {
+                setComplement("");
+                onChangeComplement("");
+              }
+            }}
+          />
+        </View>
+      </View>
 
       <Text style={styles.label}>Bairro</Text>
       <TextInput
@@ -258,7 +328,6 @@ const AddressForm = ({
             <>
               <MapRJ
                 events={previewEvent}
-                
                 onPressItem={() => {}}
                 onInteractionChange={() => {}}
               />
@@ -267,13 +336,15 @@ const AddressForm = ({
                 disabled={geocoding}
                 style={[styles.refreshBtn, geocoding && { opacity: 0.6 }]}
               >
-                <Text style={styles.refreshTxt}>{geocoding ? "Atualizando…" : "Atualizar mapa"}</Text>
+                <Text style={styles.refreshTxt}>
+                  {geocoding ? "Atualizando…" : "Atualizar mapa"}
+                </Text>
               </TouchableOpacity>
             </>
           ) : (
             <View style={styles.mapPlaceholder}>
               <Text style={{ color: "#555", textAlign: "center" }}>
-                Preencha o endereço para visualizar no mapa.
+                Preencha o endereço (sem complemento) para visualizar no mapa.
               </Text>
               <TouchableOpacity onPress={geocodeCurrentAddress} style={styles.refreshBtn}>
                 <Text style={styles.refreshTxt}>Ver no mapa</Text>
@@ -287,16 +358,9 @@ const AddressForm = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-    padding: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 4,
-  },
+  container: { gap: 16, padding: 12 },
+  label: { fontSize: 14, fontWeight: "500", color: "#333", marginBottom: 4 },
+  labelSmall: { fontSize: 12, fontWeight: "600", color: "#333" },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -304,15 +368,12 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     marginBottom: 12,
+    backgroundColor: "#fff",
   },
-  switchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-
+  inputDisabled: { backgroundColor: "#f3f4f6" },
+  inlineRow: { flexDirection: "row", gap: 12, alignItems: "flex-end" },
+  snToggle: { alignItems: "center", justifyContent: "center", paddingBottom: 12 },
+  switchContainer: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4, marginBottom: 8 },
   mapWrap: {
     marginTop: 6,
     borderRadius: 12,
@@ -321,12 +382,7 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     backgroundColor: "#f8f8f8",
   },
-  mapPlaceholder: {
-    height: 320,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-  },
+  mapPlaceholder: { height: 320, alignItems: "center", justifyContent: "center", padding: 12 },
   refreshBtn: {
     alignSelf: "flex-start",
     backgroundColor: "#2563eb",

@@ -1,27 +1,28 @@
 // app/politica/index.tsx
-import { useRouter } from "expo-router"
-import React, { useMemo, useRef, useState } from "react"
+import { useRouter } from "expo-router";
+import React, { useMemo, useRef, useState } from "react";
 import {
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native"
-// Ajuste o import conforme seu projeto RN:
-import Header2 from "@/components/Header2"
-import { useI18n } from "@/context/I18nContext"
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-type Section = { id: string; label: string }
+import Footer from "@/components/footer";
+import Header2 from "@/components/Header2";
+import { useI18n } from "@/context/I18nContext";
+
+type Section = { id: string; label: string };
 
 export default function PoliticaScreen() {
-  const router = useRouter()
-  const { t } = useI18n()
-  const updatedAt = "28/08/2025"
+  const router = useRouter();
+  const { t } = useI18n();
+  const updatedAt = "28/08/2025";
 
-  // === Sumário/Seções ===
+  // Sumário/Seções
   const sections: Section[] = useMemo(
     () => [
       { id: "quem-somos", label: t("policy_who_title") },
@@ -38,46 +39,52 @@ export default function PoliticaScreen() {
       { id: "contato", label: t("policy_contact_title") },
     ],
     [t]
-  )
+  );
 
-  // === Scroll / Âncoras ===
-  const scrollRef = useRef<ScrollView>(null)
-  const [yMap, setYMap] = useState<Record<string, number>>({})
-  const HEADER_HEIGHT = 0 // ajuste se tiver um header fixo no app
+  // Scroll / Âncoras
+  const scrollRef = useRef<ScrollView>(null);
+  const [yMap, setYMap] = useState<Record<string, number>>({});
+  const HEADER_HEIGHT = 0;
 
-  const onSectionLayout = (id: string, y: number) => {
-    setYMap((prev) => ({ ...prev, [id]: y }))
-  }
+  const onSectionLayout = (id: string, y: number) =>
+    setYMap((prev) => ({ ...prev, [id]: y }));
 
   const scrollToSection = (id: string) => {
-    const y = yMap[id] ?? 0
-    scrollRef.current?.scrollTo({ y: Math.max(y - HEADER_HEIGHT - 12, 0), animated: true })
-  }
+    const y = yMap[id] ?? 0;
+    scrollRef.current?.scrollTo({
+      y: Math.max(y - HEADER_HEIGHT - 12, 0),
+      animated: true,
+    });
+  };
 
-  const onScroll = (_e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // Se quiser destacar a seção ativa, você pode ler o e.nativeEvent.contentOffset.y
-  }
+  const onScroll = (_e: NativeSyntheticEvent<NativeScrollEvent>) => {};
 
-  // === Helpers para textos "prefixo: descrição" ===
+  // Helper “prefixo: descrição”
   const BoldPrefix: React.FC<{ text: string }> = ({ text }) => {
-    const [pfx, ...rest] = text.split(":")
-    const restJoined = rest.join(":").trim()
+    const [pfx, ...rest] = text.split(":");
+    const restJoined = rest.join(":").trim();
     return (
       <Text style={styles.li}>
         <Text style={styles.bold}>{pfx}</Text>
         {restJoined ? <Text>{`: ${restJoined}`}</Text> : null}
       </Text>
-    )
-  }
+    );
+  };
 
-  // === Tema/cores ===
-  const ORANGE = "#FF7500"
+  const ORANGE = "#FF7500";
 
   return (
-    <>
-    <Header2/>
-    <View style={styles.container}>
-      {/* Cabeçalho simples da página */}
+    <ScrollView
+      ref={scrollRef}
+      style={styles.screen}
+      contentContainerStyle={styles.screenContent}
+      scrollEventThrottle={16}
+      onScroll={onScroll}
+    >
+      {/* Header agora rola junto */}
+      <Header2 />
+
+      {/* Cabeçalho da página */}
       <View style={styles.headerBox}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{t("policy_title")}</Text>
@@ -95,13 +102,6 @@ export default function PoliticaScreen() {
               {t("common_questions_contact")}
             </Text>
           </TouchableOpacity>
-
-          {/* Em mobile não há "imprimir"; se quiser, pode abrir uma tela de compartilhamento depois */}
-          {/* <TouchableOpacity style={[styles.btn, styles.btnSolid]}>
-            <Text style={[styles.btnText, { color: "#fff" }]}>
-              {t("common_print_pdf")}
-            </Text>
-          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -126,16 +126,9 @@ export default function PoliticaScreen() {
       </View>
 
       {/* Conteúdo */}
-      <ScrollView
-        ref={scrollRef}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.content}
-      >
+      <View style={styles.content}>
         {/* Quem somos */}
-        <View
-          onLayout={(e) => onSectionLayout("quem-somos", e.nativeEvent.layout.y)}
-        >
+        <View onLayout={(e) => onSectionLayout("quem-somos", e.nativeEvent.layout.y)}>
           <Text style={styles.h2}>{t("policy_who_title")}</Text>
           <Text style={styles.p}>{t("policy_who_p1")}</Text>
           <Text style={styles.p}>{t("policy_who_p2")}</Text>
@@ -184,7 +177,7 @@ export default function PoliticaScreen() {
             <Text style={styles.li}>{t("policy_purpose_stats")}</Text>
             <Text style={styles.li}>{t("policy_purpose_requests")}</Text>
           </View>
-          <Text style={[styles.p]}>
+          <Text style={styles.p}>
             <Text style={styles.bold}>
               {t("policy_purpose_nosale").split(" ")[0]}
             </Text>{" "}
@@ -209,9 +202,7 @@ export default function PoliticaScreen() {
 
         {/* Segurança e retenção */}
         <View
-          onLayout={(e) =>
-            onSectionLayout("seguranca-retencao", e.nativeEvent.layout.y)
-          }
+          onLayout={(e) => onSectionLayout("seguranca-retencao", e.nativeEvent.layout.y)}
           style={styles.section}
         >
           <Text style={styles.h2}>{t("policy_storage_title")}</Text>
@@ -287,7 +278,6 @@ export default function PoliticaScreen() {
           <Text style={styles.p}>{t("policy_contact_p1")}</Text>
 
           <TouchableOpacity
-          
             onPress={() => router.push("/")}
             style={[styles.btn, { backgroundColor: "#000", marginTop: 12 }]}
           >
@@ -307,17 +297,18 @@ export default function PoliticaScreen() {
             .
           </Text>
         </View>
+      </View>
 
-        {/* Rodapé simples */}
-        <View style={{ height: 28 }} />
-      </ScrollView>
-    </View>
-    </>
-  )
+      {/* Footer agora também rola junto */}
+      <Footer />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  screen: { flex: 1, backgroundColor: "#F9FAFB" },
+  screenContent: { paddingBottom: 16 },
+
   headerBox: {
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -331,19 +322,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", color: "#111827" },
   subtitle: { marginTop: 2, fontSize: 13, color: "#6B7280" },
   headerActions: { flexDirection: "row", gap: 8 },
-  btn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  btnOutline: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    backgroundColor: "#fff",
-  },
-  btnSolid: {
-    backgroundColor: "#000",
-  },
+
+  btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  btnOutline: { borderWidth: 1, borderColor: "#D1D5DB", backgroundColor: "#fff" },
   btnText: { fontSize: 14, fontWeight: "700" },
 
   tocBox: {
@@ -375,30 +356,12 @@ const styles = StyleSheet.create({
   },
   tocPillText: { fontSize: 13, color: "#374151" },
 
-  content: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
+  content: { paddingHorizontal: 16, paddingVertical: 16 },
   section: { marginTop: 20 },
-  h2: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  p: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#374151",
-    marginBottom: 8,
-  },
+  h2: { fontSize: 20, fontWeight: "800", color: "#111827", marginBottom: 8 },
+  p: { fontSize: 15, lineHeight: 22, color: "#374151", marginBottom: 8 },
   ul: { marginTop: 6, marginBottom: 8 },
-  li: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#374151",
-    marginBottom: 6,
-  },
+  li: { fontSize: 15, lineHeight: 22, color: "#374151", marginBottom: 6 },
   bold: { fontWeight: "700", color: "#111827" },
   muted: { color: "#6B7280" },
-})
+});

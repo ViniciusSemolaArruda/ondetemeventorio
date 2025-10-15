@@ -1,11 +1,12 @@
 // components/QuickSearchSection.tsx
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import React, { useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
   Image,
+  ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -15,40 +16,115 @@ import {
   View,
 } from "react-native";
 
-// Tipos
+import {
+  getServiceFromKey,
+  KEY_TO_DB,
+  type KeyI18n,
+} from "@/constants/search";
+import { useI18n } from "@/context/I18nContext";
+
+/* ===========================
+   Tipos
+=========================== */
 type Option = {
-  title: string;
-  imageUrl: string;   // caminho do ícone local, ex: "/musica(1).png"
-  service?: string;   // slug opcional; se não vier, uso title
+  imageUrl: string;
+  key?: KeyI18n;
+  title?: string;
+  value?: string;
+  service?: string;
 };
 
 type Props = {
   options: Option[];
+  title?: string;
+  seeAllLabel?: string;
+  selectedService?: string;        // slug atual (ex.: "samba")
+  centerSelectedOnMount?: boolean; // centralizar no mount quando selectedService vier
+  onPressSeeAll?: () => void;
 };
 
-const SCREEN_W = Dimensions.get("window").width;
+const { width: SCREEN_W } = Dimensions.get("window");
+const QUICK_ITEM_W = 132; // largura "constante" do item
 
-// mapeia seus ícones locais (mesmo conjunto usado no seu app)
+/* ===========================
+   ÍCONES LOCAIS
+=========================== */
 const ICONS: Record<string, any> = {
   "/musica(1).png": require("../assets/icons/musica(1).png"),
   "/show.png": require("../assets/icons/show.png"),
   "/ano-novo.png": require("../assets/icons/ano-novo.png"),
+  "/boate.png": require("../assets/icons/boate.png"),
+  "/parque-tematico.png": require("../assets/icons/parque-tematico.png"),
   "/bar.png": require("../assets/icons/bar.png"),
   "/restaurante.png": require("../assets/icons/restaurante.png"),
   "/religion.png": require("../assets/icons/religion.png"),
+  "/claquete.png": require("../assets/icons/claquete.png"),
   "/teatro.png": require("../assets/icons/teatro.png"),
+  "/contorno-de-microfone-condensador-profissional.png":
+    require("../assets/icons/contorno-de-microfone-condensador-profissional.png"),
+  "/trabalho-em-equipe.png": require("../assets/icons/trabalho-em-equipe.png"),
   "/esporte.png": require("../assets/icons/esporte.png"),
   "/chefe-de-cozinha.png": require("../assets/icons/chefe-de-cozinha.png"),
   "/barraca-de-comida.png": require("../assets/icons/barraca-de-comida.png"),
   "/seminario.png": require("../assets/icons/seminario.png"),
   "/simposio.png": require("../assets/icons/simposio.png"),
+  "/planeta-terra.png": require("../assets/icons/planeta-terra.png"),
+  "/agricultura.png": require("../assets/icons/agricultura.png"),
 };
-const getIcon = (u: string) => ICONS[u];
 
-export default function QuickSearchSection({ options }: Props) {
+const resolveIcon = (u: string): ImageSourcePropType => {
+  const local = ICONS[u];
+  if (local) return local;
+  if (u?.startsWith?.("http")) return { uri: u };
+  return ICONS["/show.png"];
+};
+
+/* ===========================
+   Utils
+=========================== */
+function toDbSlug(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* ===========================
+   Item
+=========================== */
+type ItemProps = {
+  label: string;
+  icon: ImageSourcePropType;
+  onPress: () => void;
+};
+const QuickCard = memo(function QuickCard({ label, icon, onPress }: ItemProps) {
+  return (
+    <Pressable style={styles.card} onPress={onPress}>
+      <Image source={icon} style={styles.icon} />
+      <Text style={styles.cardText} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
+/* ===========================
+   Componente principal
+=========================== */
+export default function QuickSearchSection({
+  options,
+  title,
+  seeAllLabel,
+  selectedService,
+  centerSelectedOnMount,
+  onPressSeeAll,
+}: Props) {
   const router = useRouter();
-  const listRef = useRef<FlatList>(null);
+  const { t } = useI18n();
 
+  const listRef = useRef<FlatList>(null);
   const [offsetX, setOffsetX] = useState(0);
   const [contentW, setContentW] = useState(0);
 
@@ -57,65 +133,145 @@ export default function QuickSearchSection({ options }: Props) {
 
   const data = useMemo(() => options, [options]);
 
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const keyExtractor = useCallback((item: Option) => {
+    return item.key ?? item.value ?? item.service ?? (item.title ?? Math.random().toString(36));
+  }, []);
+
+  const getItemLayout = useCallback((_: any, index: number) => {
+    return { length: QUICK_ITEM_W, offset: QUICK_ITEM_W * index, index };
+  }, []);
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setOffsetX(e.nativeEvent.contentOffset.x);
-  };
+  }, []);
 
-  const onContentSizeChange = (w: number) => {
-    setContentW(w);
-  };
+  const onContentSizeChange = useCallback((w: number) => setContentW(w), []);
 
-  const scrollBy = (delta: number) => {
-    const next = Math.max(0, offsetX + delta);
-    listRef.current?.scrollToOffset({ offset: next, animated: true });
-  };
+  /* ==== Centralizar um índice ==== */
+  const centerItem = useCallback((index: number, animated = true) => {
+    const halfItem = QUICK_ITEM_W / 2;
+    const target = index * QUICK_ITEM_W + halfItem - SCREEN_W / 2;
+    const maxOffset = Math.max(0, contentW - SCREEN_W);
+    const clamped = Math.max(0, Math.min(target, maxOffset));
+    listRef.current?.scrollToOffset({ offset: clamped, animated });
+  }, [contentW]);
 
-  const handlePress = (opt: Option) => {
-    const service = (opt.service ?? opt.title).toString();
-    router.push(`/barbershops?service=${encodeURIComponent(service)}` as any);
-  };
+  /* ==== Centralizar no mount com base no selectedService ==== */
+  useEffect(() => {
+    if (!centerSelectedOnMount || !selectedService || !options?.length) return;
+
+    // encontra o índice cujo "service" resolve para o slug igual ao selectedService
+    const index = options.findIndex((opt) => {
+      const resolved = opt.key
+        ? getServiceFromKey(opt.key, opt.value)
+        : (opt.value ?? opt.service ?? opt.title) ?? "";
+      const slug = toDbSlug(String(resolved));
+      return slug === selectedService;
+    });
+
+    if (index >= 0) {
+      // sem animação pra evitar "piscar" no carregamento
+      centerItem(index, false);
+    }
+  }, [centerSelectedOnMount, selectedService, options, centerItem]);
+
+  /* ==== Snap após fim da rolagem ==== */
+  const onMomentumScrollEnd = useCallback(() => {
+    // índice cujo centro está mais próximo do centro da tela
+    const center = offsetX + SCREEN_W / 2;
+    const index = Math.round((center - QUICK_ITEM_W / 2) / QUICK_ITEM_W);
+    if (index >= 0) centerItem(index);
+  }, [centerItem, offsetX]);
+
+  /* ==== Setas ==== */
+  const scrollBy = useCallback((delta: number) => {
+    // move e depois faz snap pro item mais próximo
+    const target = Math.max(0, offsetX + delta);
+    listRef.current?.scrollToOffset({ offset: target, animated: true });
+    setTimeout(() => {
+      const center = target + SCREEN_W / 2;
+      const index = Math.round((center - QUICK_ITEM_W / 2) / QUICK_ITEM_W);
+      if (index >= 0) centerItem(index);
+    }, 120);
+  }, [centerItem, offsetX]);
+
+  /* ==== Navegar + centralizar tocado ==== */
+  const handlePress = useCallback(
+    (opt: Option, index: number) => {
+      // 1) centraliza o card tocado
+      centerItem(index);
+
+      // 2) resolve o service (slug) e navega
+      let resolved: string | undefined;
+      if (opt.key) {
+        resolved = getServiceFromKey(opt.key, opt.value);
+      } else {
+        resolved = (opt.value ?? opt.service ?? opt.title)?.toString();
+      }
+      if (!resolved) return;
+
+      const service = toDbSlug(resolved);
+
+      // pequeno delay para perceber o centrado (opcional)
+      setTimeout(() => {
+        router.push({ pathname: "/barbershops", params: { service } } as any);
+      }, 120);
+    },
+    [centerItem, router]
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Option; index: number }) => {
+      const label =
+        (item.key ? t(item.key as any) : undefined) || item.title || (item.key ? KEY_TO_DB[item.key] : "");
+      const icon = resolveIcon(item.imageUrl);
+      return <QuickCard label={label} icon={icon} onPress={() => handlePress(item, index)} />;
+    },
+    [handlePress, t]
+  );
 
   return (
     <View style={{ marginTop: 24 }}>
       {/* Header: título + Ver todas */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Busca Rápida</Text>
+        <Text style={styles.title}>{title ?? "Busca Rápida"}</Text>
+
         <TouchableOpacity
           style={styles.seeAllRow}
-          onPress={() => router.push("/colecoes" as any)}
+          onPress={onPressSeeAll ?? (() => router.push("/colecoes" as any))}
         >
-          <Text style={styles.seeAll}>Ver todas</Text>
+          <Text style={styles.seeAll}>{seeAllLabel ?? "Ver todas"}</Text>
           <ChevronRight size={16} color="#f97316" />
         </TouchableOpacity>
       </View>
 
-      {/* Carrossel horizontal */}
+      {/* Carrossel */}
       <View style={{ position: "relative" }}>
         <FlatList
           ref={listRef}
           data={data}
-          keyExtractor={(item) => (item.service ?? item.title)}
           horizontal
           showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          getItemLayout={getItemLayout}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={3}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
+          onScroll={onScroll}
           onContentSizeChange={onContentSizeChange}
           scrollEventThrottle={16}
+          onMomentumScrollEnd={onMomentumScrollEnd}
           contentContainerStyle={{ paddingRight: 16 }}
-          renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => handlePress(item)}>
-              <Image source={getIcon(item.imageUrl)} style={styles.icon} />
-              <Text style={styles.cardText} numberOfLines={1}>
-                {item.title}
-              </Text>
-            </Pressable>
-          )}
         />
 
-        {/* Setas de navegação (mostram/ somem conforme scroll) */}
+        {/* Setas */}
         {canScrollLeft && (
           <TouchableOpacity
             style={[styles.navBtn, { left: 2 }]}
-            onPress={() => scrollBy(-200)}
+            onPress={() => scrollBy(-QUICK_ITEM_W * 2)}
             activeOpacity={0.8}
           >
             <ChevronLeft size={22} color="#f97316" />
@@ -125,7 +281,7 @@ export default function QuickSearchSection({ options }: Props) {
         {canScrollRight && (
           <TouchableOpacity
             style={[styles.navBtn, { right: 2 }]}
-            onPress={() => scrollBy(200)}
+            onPress={() => scrollBy(QUICK_ITEM_W * 2)}
             activeOpacity={0.8}
           >
             <ChevronRight size={22} color="#f97316" />
@@ -136,6 +292,9 @@ export default function QuickSearchSection({ options }: Props) {
   );
 }
 
+/* ===========================
+   Styles
+=========================== */
 const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
@@ -161,7 +320,8 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    minWidth: 120,
+    width: QUICK_ITEM_W, // largura fixa ajuda no cálculo de centralização
+    minWidth: QUICK_ITEM_W,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",

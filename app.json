@@ -4,55 +4,45 @@
     "slug": "ondetemeventorio",
     "version": "1.0.0",
     "orientation": "portrait",
-
-    "icon": "./assets/icons/pin.png",
-
+    "icon": "./assets/images/logo01.png",
     "scheme": "ondetemeventorio",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+
+    "splash": {
+      "backgroundColor": "#ffffff",
+      "resizeMode": "contain"
+    },
 
     "ios": {
       "supportsTablet": true,
-      "config": {
-        "googleMapsApiKey": "SUA_CHAVE_GOOGLE_MAPS_AQUI"
-      }
+      "bundleIdentifier": "com.capadocia.ondetemeventorio",
+      "googleMapsApiKey": "SUA_CHAVE_GOOGLE_MAPS_AQUI"
     },
 
     "android": {
       "package": "com.capadocia.ondetemeventorio",
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ],
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icons/pin.png",
+        "foregroundImage": "./assets/icons/adaptive-foreground-432.png",
         "backgroundColor": "#ffffff"
       },
       "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyByyTBGR1rWcchXSR59JOVVG2IszfmpeVI"
-        }
+        "googleMaps": { "apiKey": "AIzaSyByyTBGR1rWcchXSR59JOVVG2IszfmpeVI" }
       }
     },
 
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
+      ["expo-splash-screen", {
+        "backgroundColor": "#ffffff",
+        "resizeMode": "contain"
+      }],
       "expo-web-browser"
     ],
 
     "experiments": { "typedRoutes": true },
     "owner": "viniciusarruda",
-
     "extra": {
       "API_BASE_URL": "https://www.ondetemeventorio.com.br",
       "GOOGLE_WEB_CLIENT_ID": "130486548338-89l6lucgtp5670uvu855dndetfiq8eo6.apps.googleusercontent.com",

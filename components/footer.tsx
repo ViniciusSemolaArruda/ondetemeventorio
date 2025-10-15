@@ -1,3 +1,5 @@
+// components/footer.tsx
+import { useI18n } from "@/context/I18nContext";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -11,10 +13,11 @@ import {
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const router = useRouter();
+  const { t } = useI18n();
 
   const openMail = (email: string) => {
     Linking.openURL(`mailto:${email}`).catch((err) =>
-      console.error("Erro ao abrir e-mail:", err)
+      console.error("Erro ao abrir e-mail:", err),
     );
   };
 
@@ -29,13 +32,19 @@ const Footer = () => {
 
         {/* CNPJ / Endereço / Email */}
         <View style={styles.infoBlock}>
-          <Text style={styles.infoText}>CNPJ: 15.914.276/0001-52</Text>
           <Text style={styles.infoText}>
-            Endereço: Rua Exemplo, 123 - Rio de Janeiro - RJ
+            <Text style={styles.label}>{t("footer_cnpj")}:</Text> 15.914.276/0001-52
+          </Text>
+
+          <Text style={styles.infoText}>
+            <Text style={styles.label}>{t("footer_address")}:</Text>{" "}
+            Rua Exemplo, 123 - Rio de Janeiro - RJ
           </Text>
 
           <View style={styles.rowCenter}>
-            <Text style={styles.infoText}>E-mail: </Text>
+            <Text style={styles.infoText}>
+              <Text style={styles.label}>{t("footer_email")}:</Text>{" "}
+            </Text>
             <TouchableOpacity
               accessibilityRole="link"
               onPress={() => openMail("contato.ondetemevento@gmail.com")}
@@ -53,7 +62,7 @@ const Footer = () => {
             accessibilityRole="link"
             onPress={() => router.push("/termos" as any)}
           >
-            <Text style={styles.link}>Termos de Serviço</Text>
+            <Text style={styles.link}>{t("footer_terms")}</Text>
           </TouchableOpacity>
 
           <Text style={styles.separator}>•</Text>
@@ -62,7 +71,7 @@ const Footer = () => {
             accessibilityRole="link"
             onPress={() => router.push("/politica" as any)}
           >
-            <Text style={styles.link}>Política de Privacidade</Text>
+            <Text style={styles.link}>{t("footer_privacy")}</Text>
           </TouchableOpacity>
 
           <Text style={styles.separator}>•</Text>
@@ -71,7 +80,7 @@ const Footer = () => {
             accessibilityRole="link"
             onPress={() => router.push("/cookies" as any)}
           >
-            <Text style={styles.link}>Cookies</Text>
+            <Text style={styles.link}>{t("footer_cookies")}</Text>
           </TouchableOpacity>
 
           <Text style={styles.separator}>•</Text>
@@ -80,7 +89,7 @@ const Footer = () => {
             accessibilityRole="link"
             onPress={() => router.push("/contato" as any)}
           >
-            <Text style={styles.link}>Contato</Text>
+            <Text style={styles.link}>{t("footer_contact")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -94,7 +103,7 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: "#fff",
     borderTopWidth: 1,
-    borderColor: "#e5e7eb", // cinza claro
+    borderColor: "#e5e7eb",
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
@@ -113,6 +122,10 @@ const styles = StyleSheet.create({
   infoBlock: {
     marginTop: 8,
     alignItems: "center",
+  },
+  label: {
+    fontWeight: "600",
+    color: "#374151",
   },
   infoText: {
     fontSize: 13,

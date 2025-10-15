@@ -24,7 +24,7 @@ const WebsiteSection = ({ defaultValue, onChangeWebsiteLink }: Props) => {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>6. Site</Text>
+      <Text style={styles.heading}>5. Site</Text>
 
       <View style={styles.checkboxRow}>
         <Switch
@@ -33,12 +33,12 @@ const WebsiteSection = ({ defaultValue, onChangeWebsiteLink }: Props) => {
           trackColor={{ false: "#ccc", true: "#2563eb" }}
           thumbColor={hasWebsite ? "#2563eb" : "#f4f3f4"}
         />
-        <Text style={styles.checkboxLabel}>Possui site?</Text>
+        <Text style={styles.checkboxLabel}>Possui site ou Instagram?</Text>
       </View>
 
       {hasWebsite && (
         <View style={styles.field}>
-          <Text style={styles.label}>Link do site</Text>
+          <Text style={styles.label}>Link do site ou Instagram</Text>
           <TextInput
             style={styles.input}
             value={websiteUrl}

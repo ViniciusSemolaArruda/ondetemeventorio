@@ -1,26 +1,24 @@
 // app/termos/index.tsx
-import Header2 from "@/components/Header2"
-import { useI18n } from "@/context/I18nContext"
-import { useRouter } from "expo-router"
-import React, { useMemo, useRef, useState } from "react"
+import Footer from "@/components/footer";
+import Header2 from "@/components/Header2";
+import { useI18n } from "@/context/I18nContext";
+import { useRouter } from "expo-router";
+import React, { useMemo, useRef, useState } from "react";
 import {
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native"
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-type Section = { id: string; label: string }
+type Section = { id: string; label: string };
 
 export default function TermosScreen() {
-  const { t } = useI18n()
-  const router = useRouter()
-  const updatedAt = "05/09/2025"
+  const { t } = useI18n();
+  const router = useRouter();
+  const updatedAt = "05/09/2025";
 
-  // === Seções (sumário) ===
   const sections: Section[] = useMemo(
     () => [
       { id: "objeto", label: t("terms_object_title") },
@@ -37,45 +35,46 @@ export default function TermosScreen() {
       { id: "contato", label: t("terms_contact_title") },
     ],
     [t]
-  )
+  );
 
-  // === Scroll & âncoras ===
-  const scrollRef = useRef<ScrollView>(null)
-  const [yMap, setYMap] = useState<Record<string, number>>({})
-  const HEADER_HEIGHT = 0
+  const scrollRef = useRef<ScrollView>(null);
+  const [yMap, setYMap] = useState<Record<string, number>>({});
+  const HEADER_HEIGHT = 0;
 
   const onSectionLayout = (id: string, y: number) =>
-    setYMap((prev) => ({ ...prev, [id]: y }))
+    setYMap((prev) => ({ ...prev, [id]: y }));
 
   const scrollToSection = (id: string) => {
-    const y = yMap[id] ?? 0
+    const y = yMap[id] ?? 0;
     scrollRef.current?.scrollTo({
       y: Math.max(y - HEADER_HEIGHT - 12, 0),
       animated: true,
-    })
-  }
+    });
+  };
 
-  const onScroll = (_e: NativeSyntheticEvent<NativeScrollEvent>) => {}
-
-  // Helper para strings "Prefixo: descrição"
   const BoldPrefix: React.FC<{ text: string }> = ({ text }) => {
-    const [pfx, ...rest] = text.split(":")
-    const restJoined = rest.join(":").trim()
+    const [pfx, ...rest] = text.split(":");
+    const restJoined = rest.join(":").trim();
     return (
       <Text style={styles.li}>
         <Text style={styles.bold}>{pfx}</Text>
         {restJoined ? <Text>{`: ${restJoined}`}</Text> : null}
       </Text>
-    )
-  }
+    );
+  };
 
-  const ORANGE = "#FF7500"
+  const ORANGE = "#FF7500";
 
   return (
-    <>
-    <Header2/>
-    <View style={styles.container}>
-      {/* Cabeçalho */}
+    <ScrollView
+      ref={scrollRef}
+      style={styles.screen}
+      contentContainerStyle={styles.screenContent}
+      scrollEventThrottle={16}
+    >
+      {/* Agora o Header rola junto */}
+      <Header2 />
+
       <View style={styles.headerBox}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{t("terms_title")}</Text>
@@ -117,12 +116,7 @@ export default function TermosScreen() {
       </View>
 
       {/* Conteúdo */}
-      <ScrollView
-        ref={scrollRef}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.content}
-      >
+      <View style={styles.content}>
         {/* 1. Objeto */}
         <View onLayout={(e) => onSectionLayout("objeto", e.nativeEvent.layout.y)}>
           <Text style={styles.h2}>{t("terms_object_title")}</Text>
@@ -322,19 +316,21 @@ export default function TermosScreen() {
             </Text>
           </TouchableOpacity>
 
-          <View style={{ height: 12 }} />
+          <View style={{ height: 28 }} />
           <Text style={[styles.p, styles.muted]}>{t("terms_footer_notice")}</Text>
         </View>
+      </View>
 
-        <View style={{ height: 28 }} />
-      </ScrollView>
-    </View>
-    </>
-  )
+      {/* Agora o Footer também rola junto */}
+      <Footer />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  screen: { flex: 1, backgroundColor: "#F9FAFB" },
+  screenContent: { paddingBottom: 16 },
+
   headerBox: {
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -391,4 +387,4 @@ const styles = StyleSheet.create({
   li: { fontSize: 15, lineHeight: 22, color: "#374151", marginBottom: 6 },
   bold: { fontWeight: "700", color: "#111827" },
   muted: { color: "#6B7280" },
-})
+});

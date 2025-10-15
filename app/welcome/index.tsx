@@ -2,27 +2,32 @@
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    ImageSourcePropType,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  ImageSourcePropType,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import SidebarSheet from "@/components/SidebarSheet";
-import { quickSearchOptions2 } from "@/constants/search2";
+import { quickSearchOptions } from "@/constants/search2";
 import { useAuth } from "@/context/AuthContext";
+import { useI18n } from "@/context/I18nContext";
 import { useMenu } from "@/context/MenuContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Layout
+const H_PADDING = 16;
+const GAP = 12;
+const CARD_HEIGHT = 128;
 
 /** ===========================
  *  IMAGENS (mapa robusto)
@@ -39,29 +44,35 @@ const imageMap: Record<string, ImageSourcePropType> = {
   "rock-gpt.png": require("../../assets/icons/rock-gpt.png"),
   "blues-gpt.png": require("../../assets/icons/blues-gpt.png"),
   "jazz-gpt.png": require("../../assets/icons/jazz-gpt.png"),
-  "chorinhi-gpt.png": require("../../assets/icons/chorinhi-gpt.png"),
+  "chorinho-gpt.png": require("../../assets/icons/chorinho-gpt.png"),
   "festivais-gpt.png": require("../../assets/icons/festivais-gpt.png"),
   "festas-gpt.png": require("../../assets/icons/festas-gpt.png"),
+  "boate-gpt.png": require("../../assets/icons/boate-gpt.png"),
+  "parques-gpt.png": require("../../assets/icons/parques-gpt.png"),
   "bar-gpt.png": require("../../assets/icons/bar-gpt.png"),
   "restaurantes-gpt.png": require("../../assets/icons/restaurantes-gpt.png"),
   "cristo_redentor_card_size.png": require("../../assets/icons/cristo_redentor_card_size.png"),
-  "cultural-png.png": require("../../assets/icons/cultural-png.png"),
+  "cinema-gpt.png": require("../../assets/icons/cinema-gpt.png"),
+  "teatro-gpt.png": require("../../assets/icons/teatro-gpt.png"),
+  "standup-gpt.png": require("../../assets/icons/standup-gpt.png"),
+  "familia-gpt.png": require("../../assets/icons/familia-gpt.png"),
   "esporte3-gpt.png": require("../../assets/icons/esporte3-gpt.png"),
   "gastronomia-gpt.png": require("../../assets/icons/gastronomia-gpt.png"),
   "feiras-gpt.png": require("../../assets/icons/feiras-gpt.png"),
   "seminario-gpt.png": require("../../assets/icons/seminario-gpt.png"),
   "simposio-gpt.png": require("../../assets/icons/simposio-gpt.png"),
+  "ambiente-gpt.png": require("../../assets/icons/ambiente-gpt.png"),
+  "agro-gpt.png": require("../../assets/icons/agro-gpt.png"),
 };
 
 const fallbackImg = require("../../assets/icons/simposio-gpt.png");
 
 const normalizeKey = (s?: string) => (s || "").replace(/^\/+/, "").toLowerCase();
-
 export const getImageSource = (name: string): ImageSourcePropType => {
   const key = normalizeKey(name);
   const src = imageMap[key];
   if (!src) {
-    console.warn(`[Welcome] Imagem não encontrada para "${key}". Usando fallback.`);
+    console.warn(`[Welcome] image not found for "${key}". Using fallback.`);
     return fallbackImg;
   }
   return src;
@@ -69,11 +80,6 @@ export const getImageSource = (name: string): ImageSourcePropType => {
 
 // API base
 const API_BASE = "https://ondetemeventorio.vercel.app";
-
-// Layout
-const H_PADDING = 16; // usado só no container de texto
-const GAP = 12;
-const CARD_HEIGHT = 128;
 
 export default function WelcomeScreen() {
   const [selected, setSelected] = useState<string[]>([]);
@@ -83,10 +89,11 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { user, refreshUser } = useAuth() as any;
   const { isOpen, closeMenu } = useMenu();
+  const { t } = useI18n();
 
   const firstName = useMemo(
     () => (user?.name || "").trim().split(" ")[0],
-    [user?.name]
+    [user?.name],
   );
 
   const numColumns = useMemo(() => {
@@ -96,7 +103,6 @@ export default function WelcomeScreen() {
     return 2;
   }, []);
 
-  // largura fixa por item (evita “vazar” na direita)
   const ITEM_WIDTH = useMemo(() => {
     const { width } = Dimensions.get("window");
     const available = width - H_PADDING * 2 - GAP * (numColumns - 1);
@@ -105,52 +111,65 @@ export default function WelcomeScreen() {
 
   const toggleSelect = (title: string) => {
     setSelected((prev) =>
-      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title]
+      prev.includes(title) ? prev.filter((t) => t !== title) : [...prev, title],
     );
   };
 
-const handleContinue = async () => {
-  // precisa ter pelo menos 1 preferência
-  if (selected.length === 0) {
-    Alert.alert("Atenção", "Selecione pelo menos um estilo de evento.");
-    return;
-  }
+  /** Continuar → salva preferências (primeira vez) e só então vai para HOME */
+  const handleContinue = async () => {
+    const token = user?.accessToken;
+    const isFirstTime = !user?.preferencesSet; // sem preferências no backend ainda?
 
-  const token = user?.accessToken;
-  if (!token) {
-    Alert.alert("Sessão expirada", "Faça login novamente para salvar suas preferências.");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const res = await fetch(`${API_BASE}/api/users/preferences`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ preferences: selected }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Falha ao salvar preferências (${res.status}). ${text}`);
+    // Se não tem token ou nada selecionado, só navega
+    if (!token || selected.length === 0) {
+      router.replace("/home");
+      return;
     }
 
-    await refreshUser?.();
-    router.replace("/home" as any); // ✅ vai para /home
-  } catch (e: any) {
-    console.error(e);
-    Alert.alert("Erro", e?.message ?? "Não foi possível salvar as preferências.");
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
 
+      const saveReq = fetch(`${API_BASE}/api/users/preferences`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ preferences: selected }),
+      });
 
-  const renderItem = ({ item }: { item: (typeof quickSearchOptions2)[number] }) => {
+      if (isFirstTime) {
+        // PRIMEIRA VEZ: garante salvar + atualizar usuário antes de ir pra Home
+        const res = await saveReq;
+        if (!res.ok) {
+          const text = await res.text();
+          console.warn(`Failed to save preferences (${res.status}). ${text}`);
+        } else {
+          await refreshUser?.();
+        }
+        router.replace("/home");
+      } else {
+        // Próximas vezes: navega já e salva em background
+        router.replace("/home");
+        saveReq
+          .then(async (res) => {
+            if (!res.ok) {
+              const text = await res.text();
+              console.warn(`Failed to save preferences (${res.status}). ${text}`);
+            } else {
+              await refreshUser?.();
+            }
+          })
+          .catch((e) => console.warn("Save preferences error:", e?.message || e));
+      }
+    } catch (e: any) {
+      console.warn("Unexpected error on save:", e?.message || e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: (typeof quickSearchOptions)[number] }) => {
     const isSelected = selected.includes(item.title);
     return (
       <Pressable
@@ -171,26 +190,26 @@ const handleContinue = async () => {
     );
   };
 
+  const greeting = user
+    ? (t("greeting_named") || "Olá, {name}!").replace("{name}", firstName || "Usuário")
+    : t("greeting_guest") || "Olá, bem-vindo!";
+
   return (
     <View style={{ flex: 1 }}>
       <View style={styles.container}>
         <View style={styles.padding}>
-          <Text style={styles.greeting}>
-            {user ? `Olá, ${firstName || "Usuário"}!` : "Olá, bem-vindo!"}
-          </Text>
+          <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.subtitle}>
-            Para melhorar sua experiência, selecione os estilos de eventos que você mais gosta:
+            {t("welcome_sub") ||
+              "Para melhorar sua experiência, selecione os estilos de eventos que você mais gosta:"}
           </Text>
 
           <FlatList
             contentContainerStyle={[
               styles.grid,
-              {
-                // respiro leve: o footer SafeAreaView cuida do bottom real
-                paddingBottom: Math.max(insets.bottom, 8),
-              },
+              { paddingBottom: Math.max(insets.bottom, 8) },
             ]}
-            data={quickSearchOptions2}
+            data={quickSearchOptions}
             key={numColumns}
             numColumns={numColumns}
             keyExtractor={(o) => o.title}
@@ -202,21 +221,17 @@ const handleContinue = async () => {
             }
             showsVerticalScrollIndicator={false}
             ListFooterComponent={
-              // 🔒 garante que o botão nunca encoste no home indicator
               <SafeAreaView edges={["bottom"]} style={{ paddingTop: 8, paddingBottom: 12 }}>
                 <TouchableOpacity
                   activeOpacity={0.9}
                   onPress={handleContinue}
-                  disabled={loading || selected.length === 0}
-                  style={[
-                    styles.button,
-                    (loading || selected.length === 0) && { opacity: 0.7 },
-                  ]}
+                  disabled={loading}
+                  style={[styles.button, loading && { opacity: 0.7 }]}
                 >
                   {loading ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.buttonText}>Continuar</Text>
+                    <Text style={styles.buttonText}>{t("continue_btn") || "Continuar"}</Text>
                   )}
                 </TouchableOpacity>
               </SafeAreaView>
@@ -228,11 +243,7 @@ const handleContinue = async () => {
       {/* Sidebar */}
       {isOpen && (
         <Pressable style={styles.overlay} onPress={closeMenu}>
-          <AnimatedRN.View
-            entering={SlideInRight}
-            exiting={SlideOutRight}
-            style={styles.sidebar}
-          >
+          <AnimatedRN.View entering={SlideInRight} exiting={SlideOutRight} style={styles.sidebar}>
             <SidebarSheet />
           </AnimatedRN.View>
         </Pressable>
@@ -243,7 +254,7 @@ const handleContinue = async () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  padding: { padding: 16 }, // H_PADDING aplicado só aqui
+  padding: { padding: 16 },
 
   greeting: { fontSize: 20, fontWeight: "bold" },
   subtitle: { fontSize: 16, marginTop: 4, color: "#333" },
@@ -301,11 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  buttonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 
   // Sidebar overlay
   overlay: {

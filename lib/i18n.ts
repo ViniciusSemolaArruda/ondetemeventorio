@@ -39,9 +39,16 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_seminarios: "Seminários",
     cat_simposios: "Simpósios",
     cat_agro: "Agronegócio",
+    cat_ambiente: "Meio Ambiente",
+    cat_boate: "Boates",
+    cat_teatro: "Teatro",
+    cat_standup: "Stand Up Comedy",
+    cat_familia: "Família",
 
     quick_title: "Busca Rápida",
     quick_view_all: "Ver todas",
+
+    
 
     welcome_title: "Bem-vindo ao nosso App!",
     welcome_sub:
@@ -60,6 +67,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     see_all: "Ver todas",
     more_events: "Mais Eventos",
     music_events: "Eventos de Música",
+    day_events: "Eventos do Dia a Dia",
     no_events: "Sem eventos para exibir.",
     events_map: "Mapa de Eventos",
     events_calendar: "Calendário de Eventos",
@@ -367,7 +375,60 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     terms_contact_button: "Abrir página de contato",
     terms_footer_notice:
       "Ao continuar utilizando a Plataforma, você declara estar ciente e de acordo com estes Termos de Serviço.",
-  },
+    home_subtitle: "Você quer saber onde tem evento no Rio hoje?",
+
+  cookies_title: "Política de Cookies",
+  cookies_intro:
+    "Esta Política de Cookies explica o que são cookies, como os utilizamos no app Onde Tem Evento Rio, quais informações coletamos, por que as coletamos e como você pode gerenciar suas preferências. O uso de cookies segue a LGPD e normas aplicáveis.",
+  cookies_what_are_title: "1. O que são cookies?",
+  cookies_what_are_text:
+    "Cookies são pequenos arquivos de texto armazenados no seu dispositivo quando você utiliza um site ou aplicativo. Eles permitem reconhecer seu dispositivo, melhorar a navegação, lembrar preferências e, em alguns casos, coletar informações para análise ou publicidade.",
+  cookies_types_title: "2. Tipos de cookies que utilizamos",
+  cookies_types_needed_title: "Cookies necessários: ",
+  cookies_types_needed_text:
+    "essenciais para o funcionamento do app (autenticação e segurança). Não podem ser desativados.",
+  cookies_types_analytics_title: "Cookies de analytics: ",
+  cookies_types_analytics_text:
+    "entendem como os usuários interagem com o app e ajudam a melhorar a experiência (ex.: Google Analytics).",
+  cookies_types_marketing_title: "Cookies de marketing: ",
+  cookies_types_marketing_text:
+    "personalizam anúncios e medem a eficácia de campanhas.",
+  cookies_types_third_title: "Cookies de terceiros: ",
+  cookies_types_third_text:
+    "podem ser definidos por serviços externos integrados (ex.: Cloudinary para imagens, Intercom para suporte).",
+  cookies_specific_title: "3. Cookies específicos usados",
+
+  cookies_table_name: "Nome",
+  cookies_table_purpose: "Finalidade",
+  cookies_table_duration: "Duração",
+  cookies_table_origin: "Origem",
+
+  cookies_admin_purpose: "Autenticação do administrador",
+  cookies_ga_purpose: "Google Analytics – estatísticas",
+  cookies_gcl_purpose: "Medição de campanhas",
+  cookies_intercom_purpose: "Suporte ao usuário (chat)",
+  cookies_lang_purpose: "Preferência de idioma",
+
+  cookies_duration_session: "Sessão / até expiração",
+  cookies_duration_2y: "2 anos",
+  cookies_duration_3m: "3 meses",
+  cookies_duration_1w: "1 semana",
+  cookies_duration_1y: "1 ano",
+
+  cookies_manage_title: "4. Como gerenciar cookies",
+  cookies_manage_text:
+    "Você pode gerenciar suas preferências de cookies a qualquer momento. Além disso, é possível configurar seu navegador para recusar ou apagar cookies. No entanto, isso pode afetar algumas funcionalidades.",
+  cookies_changes_title: "5. Alterações nesta política",
+  cookies_changes_text:
+    "Podemos atualizar esta Política de Cookies periodicamente para refletir mudanças no uso de cookies. A data da última atualização será sempre indicada nesta página.",
+  cookies_contact_title: "6. Contato",
+  cookies_contact_prefix:
+    "Em caso de dúvidas sobre esta Política de Cookies, entre em contato pelo e-mail: ",
+  cookies_contact_email: "contato@capadociaproducoes.com",
+  cookies_contact_suffix: " ou pelo suporte através do chat do app.",
+  cookies_last_updated: "Setembro de 2025"
+  
+    },
 
   en: {
     // Home
@@ -406,6 +467,11 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_seminarios: "Seminars",
     cat_simposios: "Symposiums",
     cat_agro: "Agribusiness",
+    cat_ambiente: "Environment",
+    cat_boate: "Nightclubs",
+    cat_teatro: "Theater",
+    cat_standup: "Stand Up Comedy",
+    cat_familia: "Family",
 
     quick_title: "Quick Search",
     quick_view_all: "See all",
@@ -426,6 +492,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     see_all: "See all",
     more_events: "More Events",
     music_events: "Music Events",
+    day_events: "Everyday Events",
     no_events: "No events to display.",
     events_map: "Events Map",
     events_calendar: "Events Calendar",
@@ -729,7 +796,61 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     terms_contact_button: "Open contact page",
     terms_footer_notice:
       "By continuing to use the Platform, you acknowledge and agree to these Terms of Service.",
-  },
+    home_subtitle: "Do you want to know where there's an event in Rio today?",
+
+  cookies_title: "Cookie Policy",
+  cookies_intro:
+    "This Cookie Policy explains what cookies are, how we use them in the Onde Tem Evento Rio app, what information we collect, why we collect it, and how you can manage your preferences. Cookie use follows the LGPD (Brazilian data law) and applicable regulations.",
+  cookies_what_are_title: "1. What are cookies?",
+  cookies_what_are_text:
+    "Cookies are small text files stored on your device when you use a website or app. They allow us to recognize your device, improve navigation, remember preferences, and in some cases collect information for analytics or advertising.",
+  cookies_types_title: "2. Types of cookies we use",
+  cookies_types_needed_title: "Necessary cookies: ",
+  cookies_types_needed_text:
+    "essential for the app to function (authentication and security). They cannot be disabled.",
+  cookies_types_analytics_title: "Analytics cookies: ",
+  cookies_types_analytics_text:
+    "help understand how users interact with the app and improve the experience (e.g., Google Analytics).",
+  cookies_types_marketing_title: "Marketing cookies: ",
+  cookies_types_marketing_text:
+    "personalize ads and measure campaign effectiveness.",
+  cookies_types_third_title: "Third-party cookies: ",
+  cookies_types_third_text:
+    "may be set by external services we integrate (e.g., Cloudinary for images, Intercom for support).",
+  cookies_specific_title: "3. Specific cookies used",
+
+  cookies_table_name: "Name",
+  cookies_table_purpose: "Purpose",
+  cookies_table_duration: "Duration",
+  cookies_table_origin: "Origin",
+
+  cookies_admin_purpose: "Admin authentication",
+  cookies_ga_purpose: "Google Analytics — statistics",
+  cookies_gcl_purpose: "Campaign measurement",
+  cookies_intercom_purpose: "User support (chat)",
+  cookies_lang_purpose: "Language preference",
+
+  cookies_duration_session: "Session / until expiration",
+  cookies_duration_2y: "2 years",
+  cookies_duration_3m: "3 months",
+  cookies_duration_1w: "1 week",
+  cookies_duration_1y: "1 year",
+
+  cookies_manage_title: "4. How to manage cookies",
+  cookies_manage_text:
+    "You can manage your cookie preferences at any time. You can also configure your browser to refuse or delete cookies. However, this may affect some features.",
+  cookies_changes_title: "5. Changes to this policy",
+  cookies_changes_text:
+    "We may update this Cookie Policy periodically to reflect changes in our use of cookies. The last update date will always be indicated on this page.",
+  cookies_contact_title: "6. Contact",
+  cookies_contact_prefix:
+    "If you have questions about this Cookie Policy, contact us at: ",
+  cookies_contact_email: "contato@capadociaproducoes.com",
+  cookies_contact_suffix: " or via in-app chat support.",
+  cookies_last_updated: "September 2025"
+  
+
+    },
 
   es: {
     // Home
@@ -768,6 +889,11 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_seminarios: "Seminarios",
     cat_simposios: "Simposios",
     cat_agro: "Agroindustria",
+    cat_ambiente: "Medio Ambiente",
+    cat_boate: "Discotecas",
+    cat_teatro: "Teatro",
+cat_standup: "Comedia Stand Up",
+    cat_familia: "Familia",
 
     quick_title: "Búsqueda Rápida",
     quick_view_all: "Ver todas",
@@ -789,6 +915,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     see_all: "Ver todas",
     more_events: "Más Eventos",
     music_events: "Eventos de Música",
+    day_events: "Everyday Events",
     no_events: "No hay eventos para mostrar.",
     events_map: "Mapa de Eventos",
     events_calendar: "Calendario de Eventos",
@@ -1096,5 +1223,57 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     terms_contact_button: "Abrir página de contacto",
     terms_footer_notice:
       "Al continuar utilizando la Plataforma, declaras estar al tanto y de acuerdo con estos Términos de Servicio.",
-  },
+    home_subtitle: "¿Quieres saber dónde hay evento en Río hoy?",
+
+  cookies_title: "Política de Cookies",
+  cookies_intro:
+    "Esta Política de Cookies explica qué son las cookies, cómo las usamos en la app Onde Tem Evento Rio, qué información recopilamos, por qué la recopilamos y cómo puedes gestionar tus preferencias. El uso de cookies sigue la LGPD y las normas aplicables.",
+  cookies_what_are_title: "1. ¿Qué son las cookies?",
+  cookies_what_are_text:
+    "Las cookies son pequeños archivos de texto almacenados en tu dispositivo cuando utilizas un sitio web o aplicación. Permiten reconocer tu dispositivo, mejorar la navegación, recordar preferencias y, en algunos casos, recopilar información para analítica o publicidad.",
+  cookies_types_title: "2. Tipos de cookies que utilizamos",
+  cookies_types_needed_title: "Cookies necesarias: ",
+  cookies_types_needed_text:
+    "esenciales para el funcionamiento de la app (autenticación y seguridad). No pueden deshabilitarse.",
+  cookies_types_analytics_title: "Cookies de analítica: ",
+  cookies_types_analytics_text:
+    "ayudan a entender cómo los usuarios interactúan con la app y a mejorar la experiencia (p. ej., Google Analytics).",
+  cookies_types_marketing_title: "Cookies de marketing: ",
+  cookies_types_marketing_text:
+    "personalizan anuncios y miden la eficacia de campañas.",
+  cookies_types_third_title: "Cookies de terceros: ",
+  cookies_types_third_text:
+    "pueden ser establecidas por servicios externos integrados (p. ej., Cloudinary para imágenes, Intercom para soporte).",
+  cookies_specific_title: "3. Cookies específicas usadas",
+
+  cookies_table_name: "Nombre",
+  cookies_table_purpose: "Finalidad",
+  cookies_table_duration: "Duración",
+  cookies_table_origin: "Origen",
+
+  cookies_admin_purpose: "Autenticación del administrador",
+  cookies_ga_purpose: "Google Analytics — estadísticas",
+  cookies_gcl_purpose: "Medición de campañas",
+  cookies_intercom_purpose: "Soporte al usuario (chat)",
+  cookies_lang_purpose: "Preferencia de idioma",
+
+  cookies_duration_session: "Sesión / hasta vencimiento",
+  cookies_duration_2y: "2 años",
+  cookies_duration_3m: "3 meses",
+  cookies_duration_1w: "1 semana",
+  cookies_duration_1y: "1 año",
+
+  cookies_manage_title: "4. Cómo gestionar las cookies",
+  cookies_manage_text:
+    "Puedes gestionar tus preferencias de cookies en cualquier momento. También puedes configurar tu navegador para rechazar o eliminar cookies. Sin embargo, esto puede afectar algunas funciones.",
+  cookies_changes_title: "5. Cambios en esta política",
+  cookies_changes_text:
+    "Podemos actualizar esta Política de Cookies periódicamente para reflejar cambios en el uso de cookies. La fecha de la última actualización siempre se indicará en esta página.",
+  cookies_contact_title: "6. Contacto",
+  cookies_contact_prefix:
+    "Si tienes dudas sobre esta Política de Cookies, contáctanos al correo: ",
+  cookies_contact_email: "contato@capadociaproducoes.com",
+  cookies_contact_suffix: " o mediante el chat de soporte en la app.",
+  cookies_last_updated: "Septiembre de 2025"
+    },
 }

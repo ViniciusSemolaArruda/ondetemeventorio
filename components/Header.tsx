@@ -1,4 +1,5 @@
 import { ROUTES } from "@/constants/route";
+import { useI18n } from "@/context/I18nContext";
 import { useRouter } from "expo-router";
 import { Menu, Plus } from "lucide-react-native";
 import React from "react";
@@ -9,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Toast from "react-native-toast-message"; // ✅ importa o Toast
+import Toast from "react-native-toast-message";
 import { useAuth } from "../context/AuthContext";
 import { useMenu } from "../context/MenuContext";
 
@@ -17,15 +18,16 @@ export default function Header() {
   const { user } = useAuth();
   const { openMenu } = useMenu();
   const router = useRouter();
+  const { t } = useI18n();
 
   const handleCreateEvent = () => {
     if (!user) {
       Toast.show({
-        type: "info", // pode usar "success" | "error" | "info"
-        text1: "Você precisa estar logado",
-        text2: "Entre na sua conta.",
-        position: "bottom", // ✅ aparece embaixo
-        visibilityTime: 3000, // 3s e some sozinho
+        type: "info",
+        text1: t("header_login_required"), // "Você precisa estar logado para criar um evento."
+        text2: t("login_desc"),            // "Entre com sua conta Google para continuar"
+        position: "bottom",
+        visibilityTime: 3000,
       });
       return;
     }
@@ -36,7 +38,7 @@ export default function Header() {
     <View style={styles.card}>
       <View style={styles.container}>
         {/* Logo */}
-        <TouchableOpacity>
+        <TouchableOpacity accessibilityRole="imagebutton" accessibilityLabel="Logo">
           <Image
             source={require("../assets/images/logo01.png")}
             style={styles.logo}
@@ -46,21 +48,26 @@ export default function Header() {
 
         {/* Botões */}
         <View style={styles.buttons}>
-          <TouchableOpacity style={styles.buttonGhost} onPress={handleCreateEvent}>
+          <TouchableOpacity
+            style={styles.buttonGhost}
+            onPress={handleCreateEvent}
+            accessibilityRole="button"
+            accessibilityLabel={t("header_create_event")}
+          >
             <Plus size={18} color="#555" />
-            <Text style={styles.buttonText}>Criar Evento</Text>
+            <Text style={styles.buttonText}>{t("header_create_event")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.iconButton, !user && styles.attentionPing]}
             onPress={openMenu}
+            accessibilityRole="button"
+            accessibilityLabel={t("header_menu_aria")}
           >
             <Menu size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
-
-      
     </View>
   );
 }
