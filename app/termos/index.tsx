@@ -14,6 +14,8 @@ import {
 
 type Section = { id: string; label: string };
 
+const BG = "#f2f2f2";
+
 export default function TermosScreen() {
   const { t } = useI18n();
   const router = useRouter();
@@ -68,8 +70,8 @@ export default function TermosScreen() {
   return (
     <ScrollView
       ref={scrollRef}
-      style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      style={[styles.screen, { backgroundColor: BG }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: BG }]}
       scrollEventThrottle={16}
     >
       {/* Agora o Header rola junto */}
@@ -322,13 +324,15 @@ export default function TermosScreen() {
       </View>
 
       {/* Agora o Footer também rola junto */}
-      <Footer />
+      <View style={{ backgroundColor: BG }}>
+        <Footer />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F9FAFB" },
+  screen: { flex: 1 },
   screenContent: { paddingBottom: 16 },
 
   headerBox: {

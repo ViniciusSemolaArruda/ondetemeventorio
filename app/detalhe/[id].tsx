@@ -29,6 +29,8 @@ type Barbershop = {
   producerDescription?: string;
 };
 
+const BG = "#f2f2f2";
+
 export default function BarbershopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
@@ -63,7 +65,7 @@ export default function BarbershopDetailScreen() {
 
   if (!barbershop) {
     return (
-      <View style={styles.loading}>
+      <View style={[styles.loading, { backgroundColor: BG }]}>
         <ActivityIndicator size="large" color="#222" />
       </View>
     );
@@ -78,10 +80,10 @@ export default function BarbershopDetailScreen() {
     : null;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: BG }]}>
       <Image source={{ uri: barbershop.imageUrl }} style={styles.image} />
 
-      <View style={styles.content}>
+      <View style={[styles.content, { backgroundColor: BG }]}>
         <Text style={styles.title}>{barbershop.name}</Text>
         <Text style={styles.address}>{barbershop.address}</Text>
 
@@ -135,15 +137,15 @@ export default function BarbershopDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   image: { width: "100%", height: 250 },
   content: { padding: 16 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 6 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 6, color: "#111" },
   address: { fontSize: 14, color: "#666", marginBottom: 12 },
   label: { fontSize: 12, fontWeight: "bold", color: "#555", marginTop: 16 },
-  description: { fontSize: 14, marginTop: 4, textAlign: "justify" },
+  description: { fontSize: 14, marginTop: 4, textAlign: "justify", color: "#333" },
   time: { fontSize: 14, marginTop: 8, color: "#333" },
-  map: { height: 200, width: "100%", marginTop: 16 },
+  map: { height: 200, width: "100%", marginTop: 16, backgroundColor: "#fff" },
   mapError: { color: "red", marginTop: 16 },
   linkButton: {
     backgroundColor: "#222",

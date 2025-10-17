@@ -62,6 +62,7 @@ const ROW_GAP = 16;
 const CARD_ROW_H = IMAGE_H + CARD_VERTICAL_GAP + CARD_TEXT_BLOCK;
 
 const STORAGE_KEY = "@ote:selectedRegion";
+const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
 const isFutureOrOngoing = (ev: EventItem) => {
   const now = Date.now();
@@ -312,9 +313,9 @@ export default function BarbershopsScreen() {
   const remaining = Math.max(0, visibleListHeight - listHeaderH - rowsHeight);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       {/* Header (não fixo) */}
-      <View onLayout={onOuterHeaderLayout}>
+      <View onLayout={onOuterHeaderLayout} style={{ backgroundColor: BG }}>
         <Header3 />
       </View>
 
@@ -323,15 +324,16 @@ export default function BarbershopsScreen() {
         keyExtractor={(item) => item.id}
         numColumns={NUM_COLS}
         columnWrapperStyle={NUM_COLS > 1 ? { gap: COL_GAP, marginBottom: ROW_GAP } : undefined}
-        contentContainerStyle={[styles.grid, { paddingHorizontal: H_PADDING }]}
+        contentContainerStyle={[styles.grid, { paddingHorizontal: H_PADDING, backgroundColor: BG }]}
+        style={{ backgroundColor: BG }}
         ListHeaderComponent={
-          <View style={styles.headerBlock} onLayout={onListHeaderLayout}>
+          <View style={[styles.headerBlock, { backgroundColor: BG }]} onLayout={onListHeaderLayout}>
             {/* Quick Search — empurrado levemente para a esquerda */}
             <View style={{ marginLeft: -QUICKSEARCH_LEFT_NUDGE }}>
               <QuickSearchSectionRN
-  key={`qs-${service || "none"}`}
-  onPressSeeAll={() => router.push("/colecoes" as any)}
-/>
+                key={`qs-${service || "none"}`}
+                onPressSeeAll={() => router.push("/colecoes" as any)}
+              />
             </View>
 
             {/* Regiões — alinhado com o grid */}
@@ -356,8 +358,10 @@ export default function BarbershopsScreen() {
         renderItem={renderCard}
         ListFooterComponent={
           <>
-            {remaining > 0 ? <View style={{ height: remaining }} /> : null}
-            <Footer />
+            {remaining > 0 ? <View style={{ height: remaining, backgroundColor: BG }} /> : null}
+            <View style={{ backgroundColor: BG }}>
+              <Footer />
+            </View>
           </>
         }
       />
@@ -377,7 +381,6 @@ export default function BarbershopsScreen() {
 const styles = StyleSheet.create({
   headerBlock: {
     paddingTop: 8,
-    backgroundColor: "#fff",
   },
 
   resultTitle: {

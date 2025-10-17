@@ -3,14 +3,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 
@@ -27,16 +27,17 @@ import { mapCityToRegion } from "@/lib/rjRegions";
 
 const SCREEN = Dimensions.get("window");
 const STORAGE_KEY_REGION = "@ote:selectedRegion";
+const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
 export default function AllNoDateScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { isOpen, closeMenu } = useMenu();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<GridItem[]>([]);
   const [region, setRegion] = useState<string>("");
-const { t } = useI18n();
 
   const isLoggedIn = !!user?.accessToken;
 
@@ -47,7 +48,9 @@ const { t } = useI18n();
       const urlRegion = (regionFromParams ?? "").toString().trim();
       if (urlRegion) {
         setRegion(urlRegion);
-        try { await AsyncStorage.setItem(STORAGE_KEY_REGION, urlRegion); } catch {}
+        try {
+          await AsyncStorage.setItem(STORAGE_KEY_REGION, urlRegion);
+        } catch {}
         return;
       }
       try {
@@ -131,18 +134,20 @@ const { t } = useI18n();
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
         data={[{ key: "header" }]}
         renderItem={null}
         keyExtractor={(it) => it.key}
+        style={{ backgroundColor: BG }}
+        contentContainerStyle={{ backgroundColor: BG }}
         ListHeaderComponent={
-          <View style={{ flexGrow: 1, minHeight: SCREEN.height }}>
+          <View style={{ flexGrow: 1, minHeight: SCREEN.height, backgroundColor: BG }}>
             <Header2 />
             <View style={styles.container}>
               <Text style={styles.title}>
-  {region ? `${t("day_events")} — ${region}` : t("day_events")}
-</Text>
+                {region ? `${t("day_events")} — ${region}` : t("day_events")}
+              </Text>
 
               {loading ? (
                 <ActivityIndicator size="large" color="#f97316" />
@@ -159,14 +164,15 @@ const { t } = useI18n();
 
               {!loading && items.length === 0 ? (
                 <Text style={styles.empty}>
-                  Nenhum evento sem data encontrado{region ? ` para a região ${region}` : ""}.
+                  Nenhum evento sem data encontrado
+                  {region ? ` para a região ${region}` : ""}.
                 </Text>
               ) : null}
             </View>
           </View>
         }
         ListFooterComponent={
-          <View style={{ paddingTop: 32 }}>
+          <View style={{ paddingTop: 32, backgroundColor: BG }}>
             <Footer />
           </View>
         }

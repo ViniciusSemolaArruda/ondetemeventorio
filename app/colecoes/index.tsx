@@ -6,7 +6,7 @@ import {
   quickSearchOptions,
   serviceFor,
   type QuickSearchOption,
-} from "@/constants/search2"; // ✅ usa o search2.ts correto
+} from "@/constants/search2";
 import { useI18n } from "@/context/I18nContext";
 import type { Href } from "expo-router";
 import { useRouter } from "expo-router";
@@ -28,15 +28,11 @@ const GAP = 8;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const AVAILABLE_WIDTH = SCREEN_WIDTH - H_PADDING * 2 - GAP * (NUM_COLUMNS - 1);
 const ITEM_SIZE = Math.floor(AVAILABLE_WIDTH / NUM_COLUMNS);
+const BG = "#f2f2f2";
 
 /** ======================
  *  MAPA DE IMAGENS (cards)
- *  ======================
- *  Usa os mesmos nomes que você colocou em /app/_constants/search2.ts
- *  Observações:
- *   - imageUrl vem como "/arquivo.png" → removemos a "/" e tentamos o mapa.
- *   - cobrimos o alias "chorinhi-gpt.png" → "chorinho-gpt.png".
- */
+ *  ====================== */
 const CARD_FILES: Record<string, any> = {
   "SAPUCAI1.png": require("../../assets/icons/SAPUCAI1.png"),
   "roda-gpt.png": require("../../assets/icons/roda-gpt.png"),
@@ -49,7 +45,6 @@ const CARD_FILES: Record<string, any> = {
   "rock-gpt.png": require("../../assets/icons/rock-gpt.png"),
   "blues-gpt.png": require("../../assets/icons/blues-gpt.png"),
   "jazz-gpt.png": require("../../assets/icons/jazz-gpt.png"),
-  // ✅ alias correto para chorinho
   "chorinho-gpt.png": require("../../assets/icons/chorinho-gpt.png"),
   "festivais-gpt.png": require("../../assets/icons/festivais-gpt.png"),
   "festas-gpt.png": require("../../assets/icons/festas-gpt.png"),
@@ -70,44 +65,28 @@ const CARD_FILES: Record<string, any> = {
   "ambiente-gpt.png": require("../../assets/icons/ambiente-gpt.png"),
   "agro-gpt.png": require("../../assets/icons/agro-gpt.png"),
 };
-// também deixo as chaves em lowercase para tolerar diferenças de caixa
 const CARD_FILES_LC: Record<string, any> = Object.fromEntries(
   Object.keys(CARD_FILES).map((k) => [k.toLowerCase(), CARD_FILES[k]])
 );
-
-// fallback genérico
 const FALLBACK = require("../../assets/icons/show.png");
-
-// corrige nomes errados que possam vir no imageUrl
 const NAME_ALIASES: Record<string, string> = {
   "chorinho-gpt.png": "chorinho-gpt.png",
 };
 
 function resolveImageSource(imageUrl: string): ImageSourcePropType {
   if (!imageUrl) return FALLBACK;
-  // remove barras iniciais
   const raw = imageUrl.replace(/^\/+/, "");
   const alias = NAME_ALIASES[raw] ?? raw;
-
-  // 1) tenta exact match (case-sensitive)
   if (CARD_FILES[alias]) return CARD_FILES[alias];
-
-  // 2) tenta case-insensitive
   const lc = alias.toLowerCase();
   if (CARD_FILES_LC[lc]) return CARD_FILES_LC[lc];
-
-  // 3) se vier http(s), usa remoto
   if (/^https?:\/\//i.test(imageUrl)) return { uri: imageUrl };
-
-  // 4) fallback
   return FALLBACK;
 }
 
 export default function ColecoesScreen() {
   const router = useRouter();
   const { t } = useI18n();
-
-  // 🔎 busca por NOME (igual ao web quando digita na barra) — mantido caso queira reativar
   const [searchText, setSearchText] = useState("");
 
   const goSearchByTitle = () => {
@@ -119,14 +98,16 @@ export default function ColecoesScreen() {
   const data = useMemo<QuickSearchOption[]>(() => quickSearchOptions, []);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
         data={data}
         numColumns={NUM_COLUMNS}
         keyExtractor={(item) => item.key}
+        style={{ backgroundColor: BG }}
         contentContainerStyle={{
           paddingBottom: 32,
           rowGap: GAP,
+          backgroundColor: BG,
         }}
         columnWrapperStyle={{
           columnGap: GAP,
@@ -134,17 +115,21 @@ export default function ColecoesScreen() {
         }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <>
+          <View style={{ backgroundColor: BG }}>
             <Header2 />
             <View style={{ paddingHorizontal: H_PADDING, paddingTop: 16 }}>
               <Text style={styles.title}>{t("colecoes_title")}</Text>
             </View>
-          </>
+          </View>
         }
-        ListFooterComponent={<Footer />}
+        ListFooterComponent={
+          <View style={{ backgroundColor: BG }}>
+            <Footer />
+          </View>
+        }
         renderItem={({ item }) => {
-          const label = labelFor(item, t);               // traduz (fallback -> title)
-          const serviceValue = serviceFor(item);         // valor exato do DB
+          const label = labelFor(item, t);
+          const serviceValue = serviceFor(item);
           const source = resolveImageSource(item.imageUrl);
 
           return (
@@ -182,7 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#eee",
+    backgroundColor: "#eee", // card continua com base clara
   },
   image: {
     ...StyleSheet.absoluteFillObject,

@@ -5,18 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo01.png",
-    "scheme": "ondetemeventorio",
-    "userInterfaceStyle": "automatic",
 
     "splash": {
+      "image": "./assets/icons/pin-1200x1200.png",
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
-    },
-
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.capadocia.ondetemeventorio",
-      "googleMapsApiKey": "SUA_CHAVE_GOOGLE_MAPS_AQUI"
     },
 
     "android": {
@@ -29,19 +22,35 @@
       },
       "config": {
         "googleMaps": { "apiKey": "AIzaSyByyTBGR1rWcchXSR59JOVVG2IszfmpeVI" }
-      }
+      },
+      "jsEngine": "hermes"
     },
 
     "plugins": [
       "expo-router",
-      ["expo-splash-screen", {
-        "backgroundColor": "#ffffff",
-        "resizeMode": "contain"
-      }],
-      "expo-web-browser"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icons/pin-1200x1200.png",
+          "backgroundColor": "#ffffff",
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "kotlinVersion": "2.0.21",
+            "packagingOptions": { "exclude": ["META-INF/*"] }
+          }
+        }
+      ]
     ],
 
-    "experiments": { "typedRoutes": true },
     "owner": "viniciusarruda",
     "extra": {
       "API_BASE_URL": "https://www.ondetemeventorio.com.br",

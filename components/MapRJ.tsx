@@ -1,4 +1,4 @@
-// MapRJ.tsx
+// components/MapRJ.tsx
 import { useI18n } from "@/context/I18nContext";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,11 +13,11 @@ import {
 } from "react-native";
 import MapView, {
   Callout,
-  MapMarker,
-  MapViewProps,
   Marker,
   PROVIDER_GOOGLE,
   Region,
+  type MapMarker,
+  type MapViewProps,
 } from "react-native-maps";
 
 export type EventMapItem = {
@@ -54,8 +54,9 @@ type Props =
   | (BaseProps & { events?: never; barbershops: BarbershopListItem[] });
 
 const screenWidth = Dimensions.get("window").width;
-const OUTSIDE_HIT = 12; // px de faixa clicável em volta do mapa para "sair"
+const OUTSIDE_HIT = 12;
 
+// ===== Helpers =====
 function groupByCoord(items: EventMapItem[], precision = 6) {
   const map = new Map<string, EventMapItem[]>();
   for (const it of items) {
@@ -66,19 +67,11 @@ function groupByCoord(items: EventMapItem[], precision = 6) {
   }
   return Array.from(map.entries()).map(([key, list]) => {
     const [latStr, lngStr] = key.split("|");
-    return {
-      centerLat: parseFloat(latStr),
-      centerLng: parseFloat(lngStr),
-      items: list,
-    };
+    return { centerLat: parseFloat(latStr), centerLng: parseFloat(lngStr), items: list };
   });
 }
 
-function computeSpiderfyOffsets(
-  count: number,
-  centerLat: number,
-  region: Region
-): { dLat: number; dLng: number }[] {
+function computeSpiderfyOffsets(count: number, centerLat: number, region: Region) {
   if (count <= 1) return [{ dLat: 0, dLng: 0 }];
   const base = region.longitudeDelta;
   const min = 0.00018;
@@ -87,28 +80,25 @@ function computeSpiderfyOffsets(
   const cosLat = Math.max(0.0001, Math.cos((centerLat * Math.PI) / 180));
   const dLngUnit = radius / cosLat;
   const angles = Array.from({ length: count }).map((_, i) => (2 * Math.PI * i) / count);
-  return angles.map((ang) => ({
-    dLat: radius * Math.sin(ang),
-    dLng: dLngUnit * Math.cos(ang),
-  }));
+  return angles.map((ang) => ({ dLat: radius * Math.sin(ang), dLng: dLngUnit * Math.cos(ang) }));
 }
 
 function shouldShowCompactCluster(region: Region, groupSize: number) {
   return groupSize > 1 && region.longitudeDelta >= 0.05;
 }
 
-/** bounding box aproximado da CAPITAL (município do Rio de Janeiro) */
 function isInCapitalBounds(lat: number, lng: number) {
-  const MIN_LAT = -23.1;
-  const MAX_LAT = -22.75;
-  const MIN_LNG = -43.8;
-  const MAX_LNG = -43.0;
+  const MIN_LAT = -23.1,
+    MAX_LAT = -22.75,
+    MIN_LNG = -43.8,
+    MAX_LNG = -43.0;
   return lat >= MIN_LAT && lat <= MAX_LAT && lng >= MIN_LNG && lng <= MAX_LNG;
 }
 
+// ===== Componente =====
 export default function MapRJ({
   loading = false,
-  emptyMessage = undefined, // se não vier, usa t("no_events")
+  emptyMessage,
   fitOnDataChange = true,
   regionSelected,
   ...props
@@ -117,10 +107,12 @@ export default function MapRJ({
 
   const mapRef = useRef<MapView | null>(null);
   const markerRefs = useRef<Record<string, MapMarker | null>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
+  const makeGroupKey = (lat: number, lng: number) => `${lat.toFixed(6)}|${lng.toFixed(6)}`;
 
   const normalized = useMemo<EventMapItem[]>(() => {
-    const source: (EventMapItem | BarbershopListItem)[] =
-      props.events ?? props.barbershops ?? [];
+    const source: (EventMapItem | BarbershopListItem)[] = props.events ?? props.barbershops ?? [];
     return source
       .map((item) => {
         if ("lat" in item && "lng" in item) {
@@ -166,14 +158,16 @@ export default function MapRJ({
   const [region, setRegion] = useState<Region>(defaultRegion);
 
   useEffect(() => {
-    if (typeof props.isInteractive === "boolean") {
-      setInteractive(props.isInteractive);
-    }
+    if (typeof props.isInteractive === "boolean") setInteractive(props.isInteractive);
   }, [props.isInteractive]);
 
   const notifyInteraction = (enabled: boolean) => {
     setInteractive(enabled);
     props.onInteractionChange?.(enabled);
+  };
+
+  const setMarkerRef = (id: string) => (ref: MapMarker | null) => {
+    markerRefs.current[id] = ref;
   };
 
   const fitMarkers = useCallback(() => {
@@ -189,66 +183,86 @@ export default function MapRJ({
   }, [filtered]);
 
   useEffect(() => {
-    if (!fitOnDataChange) return;
-    if (loading) return;
+    if (!fitOnDataChange || loading) return;
     const tmr = setTimeout(() => fitMarkers(), 50);
     return () => clearTimeout(tmr);
   }, [loading, filtered, fitOnDataChange, fitMarkers]);
 
   const onRegionChangeComplete = (r: Region) => setRegion(r);
 
-  const clamp = (v: number, min: number, max: number) =>
-    Math.min(max, Math.max(min, v));
-  const zoom = (factor: number) => {
-    const next: Region = {
-      ...region,
-      latitudeDelta: clamp(region.latitudeDelta * factor, 0.002, 40),
-      longitudeDelta: clamp(region.longitudeDelta * factor, 0.002, 40),
-    };
-    mapRef.current?.animateToRegion(next, 200);
-  };
-
-  const setMarkerRef = (id: string) => (ref: MapMarker | null): void => {
-    markerRefs.current[id] = ref;
-  };
+  // abre sempre que selectedId mudar (Android-friendly)
+  useEffect(() => {
+    if (!selectedId) return;
+    const ref = markerRefs.current[selectedId];
+    if (!ref) return;
+    setTimeout(() => ref.showCallout?.(), 110);
+  }, [selectedId]);
 
   const groups = useMemo(() => groupByCoord(filtered, 6), [filtered]);
   const showEmpty = !loading && filtered.length === 0;
   const resolvedEmptyMessage = emptyMessage ?? t("no_events");
 
+  const renderCallout = (
+    id: string,
+    name?: string | null,
+    address?: string | null,
+    imageUrl?: string | null
+  ) => (
+    <Callout tooltip={false} style={styles.callout}>
+      <View>
+        {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : null}
+        {name ? <Text style={styles.name}>{name}</Text> : null}
+        {address ? <Text style={styles.address}>{address}</Text> : null}
+        <View style={styles.ctaBtn}>
+          <Text style={styles.ctaTxt}>{t("map_view_details") || "Ver detalhes"}</Text>
+        </View>
+      </View>
+    </Callout>
+  );
+
   return (
-    <View style={styles.wrapper}>
-      {/* ZONAS DE “CLIQUE FORA” — só aparecem quando interativo */}
+    <View
+      style={styles.wrapper}
+      onTouchStart={() => !interactive && !loading && !showEmpty && notifyInteraction(true)}
+    >
+      {/* clicar fora */}
       {interactive && (
         <>
           <Pressable
             style={[styles.outsideZone, { top: 0, left: 0, right: 0, height: OUTSIDE_HIT }]}
-            onPress={() => notifyInteraction(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Exit map by tapping outside"
+            onPress={() => {
+              notifyInteraction(false);
+              setExpandedClusters(new Set());
+              setSelectedId(null);
+            }}
           />
           <Pressable
             style={[styles.outsideZone, { bottom: 0, left: 0, right: 0, height: OUTSIDE_HIT }]}
-            onPress={() => notifyInteraction(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Exit map by tapping outside"
+            onPress={() => {
+              notifyInteraction(false);
+              setExpandedClusters(new Set());
+              setSelectedId(null);
+            }}
           />
           <Pressable
             style={[styles.outsideZone, { top: OUTSIDE_HIT, bottom: OUTSIDE_HIT, left: 0, width: OUTSIDE_HIT }]}
-            onPress={() => notifyInteraction(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Exit map by tapping outside"
+            onPress={() => {
+              notifyInteraction(false);
+              setExpandedClusters(new Set());
+              setSelectedId(null);
+            }}
           />
           <Pressable
             style={[styles.outsideZone, { top: OUTSIDE_HIT, bottom: OUTSIDE_HIT, right: 0, width: OUTSIDE_HIT }]}
-            onPress={() => notifyInteraction(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Exit map by tapping outside"
+            onPress={() => {
+              notifyInteraction(false);
+              setExpandedClusters(new Set());
+              setSelectedId(null);
+            }}
           />
         </>
       )}
 
-      {/* OVERLAY: tocar para ativar */}
       {!interactive && !loading && !showEmpty && (
         <View pointerEvents="box-none" style={styles.overlayWrap}>
           <TouchableOpacity
@@ -263,14 +277,15 @@ export default function MapRJ({
         </View>
       )}
 
-      {/* BOTÃO SAIR (opcional, mantém UX explícita) */}
       {interactive && !loading && !showEmpty && (
         <TouchableOpacity
-          onPress={() => notifyInteraction(false)}
+          onPress={() => {
+            notifyInteraction(false);
+            setExpandedClusters(new Set());
+            setSelectedId(null);
+          }}
           style={styles.exitBtn}
           activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Exit map"
         >
           <Text style={styles.exitTxt}>×</Text>
         </TouchableOpacity>
@@ -299,6 +314,8 @@ export default function MapRJ({
           onMapReady={fitMarkers}
           onLayout={fitMarkers}
           onRegionChangeComplete={onRegionChangeComplete}
+          onPanDrag={() => !interactive && notifyInteraction(true)}
+          onTouchStart={() => !interactive && notifyInteraction(true)}
           scrollEnabled={interactive && !loading && !showEmpty}
           zoomEnabled={interactive && !loading && !showEmpty}
           rotateEnabled={interactive && !loading && !showEmpty}
@@ -306,28 +323,32 @@ export default function MapRJ({
           zoomControlEnabled={false}
           minZoomLevel={3}
           maxZoomLevel={20}
-          onPress={() => !interactive && !loading && !showEmpty && notifyInteraction(true)}
+          moveOnMarkerPress={false} // evita recenter que fecha o callout
         >
           {!loading &&
             !showEmpty &&
             groups.map((group) => {
               const { centerLat, centerLng, items } = group;
+              const gkey = makeGroupKey(centerLat, centerLng);
+              const isExpanded = expandedClusters.has(gkey);
 
-              if (shouldShowCompactCluster(region, items.length)) {
-                const key = `cluster-${centerLat}-${centerLng}-${items.length}`;
+              // Cluster compacto → toca para expandir
+              if (items.length > 1 && !isExpanded && shouldShowCompactCluster(region, items.length)) {
                 return (
                   <Marker
-                    key={key}
+                    key={`cluster-${gkey}-${items.length}`}
                     coordinate={{ latitude: centerLat, longitude: centerLng }}
                     onPress={() => {
+                      notifyInteraction(true);
+                      setExpandedClusters((prev) => new Set(prev).add(gkey));
                       mapRef.current?.animateToRegion(
                         {
                           latitude: centerLat,
                           longitude: centerLng,
-                          latitudeDelta: region.latitudeDelta * 0.5,
-                          longitudeDelta: region.longitudeDelta * 0.5,
+                          latitudeDelta: region.latitudeDelta * 0.6,
+                          longitudeDelta: region.longitudeDelta * 0.6,
                         },
-                        200
+                        150
                       );
                     }}
                   >
@@ -338,13 +359,12 @@ export default function MapRJ({
                 );
               }
 
+              // Spiderfy (grupo expandido)
               if (items.length > 1) {
-                const offsets = computeSpiderfyOffsets(items.length, centerLat, region);
+                const offs = computeSpiderfyOffsets(items.length, centerLat, region);
                 return items.map((ev, idx) => {
-                  const off = offsets[idx];
-                  const lat = centerLat + off.dLat;
-                  const lng = centerLng + off.dLng;
-
+                  const lat = centerLat + offs[idx].dLat;
+                  const lng = centerLng + offs[idx].dLng;
                   return (
                     <Marker
                       key={ev.id}
@@ -353,35 +373,23 @@ export default function MapRJ({
                       pinColor="#FF7400"
                       anchor={{ x: 0.5, y: 1 }}
                       calloutAnchor={{ x: 0.5, y: 0 }}
-                      onPress={() => {
-                        if (!interactive) {
-                          notifyInteraction(true);
-                          setTimeout(() => markerRefs.current[ev.id]?.showCallout(), 120);
-                        } else {
-                          markerRefs.current[ev.id]?.showCallout();
-                        }
+                      tracksViewChanges={false}
+                      zIndex={9999}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        if (!interactive) notifyInteraction(true);
+                        setSelectedId(ev.id);
+                        setTimeout(() => markerRefs.current[ev.id]?.showCallout?.(), 100);
                       }}
                       onCalloutPress={() => props.onPressItem?.(ev.id)}
                     >
-                      <Callout tooltip onPress={() => props.onPressItem?.(ev.id)}>
-                        <View style={styles.popup}>
-                          {ev.imageUrl ? (
-                            <Image source={{ uri: ev.imageUrl }} style={styles.image} />
-                          ) : null}
-                          <Text style={styles.name}>{ev.name}</Text>
-                          {ev.address ? (
-                            <Text style={styles.address}>{ev.address}</Text>
-                          ) : null}
-                          <View style={styles.button}>
-                            <Text style={styles.buttonText}>{t("map_view_details")}</Text>
-                          </View>
-                        </View>
-                      </Callout>
+                      {renderCallout(ev.id, ev.name, ev.address, ev.imageUrl)}
                     </Marker>
                   );
                 });
               }
 
+              // Único ponto
               const ev = items[0]!;
               return (
                 <Marker
@@ -391,62 +399,50 @@ export default function MapRJ({
                   pinColor="#FF7400"
                   anchor={{ x: 0.5, y: 1 }}
                   calloutAnchor={{ x: 0.5, y: 0 }}
-                  onPress={() => {
-                    if (!interactive) {
-                      notifyInteraction(true);
-                      setTimeout(() => markerRefs.current[ev.id]?.showCallout(), 120);
-                    } else {
-                      markerRefs.current[ev.id]?.showCallout();
-                    }
+                  tracksViewChanges={false}
+                  zIndex={9999}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    if (!interactive) notifyInteraction(true);
+                    setSelectedId(ev.id);
+                    setTimeout(() => markerRefs.current[ev.id]?.showCallout?.(), 100);
                   }}
                   onCalloutPress={() => props.onPressItem?.(ev.id)}
                 >
-                  <Callout tooltip onPress={() => props.onPressItem?.(ev.id)}>
-                    <View style={styles.popup}>
-                      {ev.imageUrl ? (
-                        <Image source={{ uri: ev.imageUrl }} style={styles.image} />
-                      ) : null}
-                      <Text style={styles.name}>{ev.name}</Text>
-                      {ev.address ? (
-                        <Text style={styles.address}>{ev.address}</Text>
-                      ) : null}
-                      <View style={styles.button}>
-                        <Text style={styles.buttonText}>{t("map_view_details")}</Text>
-                      </View>
-                    </View>
-                  </Callout>
+                  {renderCallout(ev.id, ev.name, ev.address, ev.imageUrl)}
                 </Marker>
               );
             })}
         </MapView>
+
+        {/* máscara só visual (não clipa o callout) */}
+        <View style={styles.roundMask} pointerEvents="none" />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "relative",
-    width: "100%",
-    // criamos um "acolchoado" para ter área clicável fora do mapa
-    padding: OUTSIDE_HIT,
-  },
+  wrapper: { position: "relative", width: "100%", padding: OUTSIDE_HIT },
+  outsideZone: { position: "absolute", backgroundColor: "transparent", zIndex: 20 },
 
-  // faixas invisíveis para “clicar fora e sair”
-  outsideZone: {
-    position: "absolute",
-    backgroundColor: "transparent",
-    zIndex: 20,
-  },
-
-  container: {
-    width: "100%",
-    height: 420,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-  },
+  // ⚠️ sem overflow:hidden (isso clipa o Callout no Android)
+  container: { width: "100%", height: 420, backgroundColor: "#fff" },
   map: { flex: 1 },
+
+  // máscara apenas estética (não interfere nos toques)
+  roundMask: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
 
   overlayWrap: {
     position: "absolute",
@@ -458,90 +454,58 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  overlayCta: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderRadius: 10,
-  },
+  overlayCta: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 10 },
   lockText: { color: "#fff", fontWeight: "700", letterSpacing: 0.3 },
 
   exitBtn: {
-    position: "absolute",
-    zIndex: 16,
-    top: OUTSIDE_HIT + 8,
-    right: OUTSIDE_HIT + 8,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    position: "absolute", zIndex: 16, top: OUTSIDE_HIT + 8, right: OUTSIDE_HIT + 8,
+    backgroundColor: "rgba(0,0,0,0.6)", width: 28, height: 28, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
   },
   exitTxt: { color: "#fff", fontWeight: "800", fontSize: 14, lineHeight: 14 },
 
   clusterBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FF7400",
-    borderWidth: 2,
-    borderColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
+    width: 44, height: 44, borderRadius: 22, backgroundColor: "#FF7400",
+    borderWidth: 2, borderColor: "white", alignItems: "center", justifyContent: "center", elevation: 6,
   },
   clusterText: { color: "white", fontWeight: "800" },
 
-  popup: {
-    width: screenWidth * 0.7,
+  // ===== Callout (Android-friendly) =====
+  callout: {
+    width: 280,                // largura fixa evita bug de medir 0
+    padding: 0,
+    backgroundColor: "transparent",
+    borderRadius: 12,
+  },
+  tipWrap: { alignItems: "center" },
+  bubble: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 10,
-    alignItems: "center",
-    elevation: 4,
+    borderRadius: 12,
+    padding: 12,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
   },
-  image: {
-    width: "100%",
-    height: 120,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  name: { fontWeight: "bold", fontSize: 16, marginBottom: 4, textAlign: "center" },
-  address: { fontSize: 12, color: "#666", marginBottom: 8, textAlign: "center" },
-  button: {
-    backgroundColor: "#FF7500",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-  },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  bubbleHeader: { flexDirection: "row" },
+  closeX: { fontSize: 18, fontWeight: "800", color: "#999", paddingHorizontal: 2 },
+
+  image: { width: "100%", height: 110, borderRadius: 8, marginBottom: 8 },
+  name: { fontWeight: "700", fontSize: 15, marginBottom: 4, color: "#0f172a", textAlign: "left" },
+  address: { fontSize: 12, color: "#475569", marginBottom: 10, textAlign: "left" },
+  ctaBtn: { alignSelf: "flex-start", backgroundColor: "#FF7500", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  ctaTxt: { color: "#fff", fontWeight: "700" },
 
   loadingOverlay: {
-    position: "absolute",
-    zIndex: 18,
-    top: OUTSIDE_HIT,
-    right: OUTSIDE_HIT,
-    bottom: OUTSIDE_HIT,
-    left: OUTSIDE_HIT,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: "rgba(255,255,255,0.35)",
-    borderRadius: 12,
+    position: "absolute", zIndex: 18, top: OUTSIDE_HIT, right: OUTSIDE_HIT, bottom: OUTSIDE_HIT, left: OUTSIDE_HIT,
+    alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: 12,
   },
   loadingText: { fontWeight: "600", color: "#111827" },
 
   emptyOverlay: {
-    position: "absolute",
-    zIndex: 18,
-    top: OUTSIDE_HIT,
-    right: OUTSIDE_HIT,
-    bottom: OUTSIDE_HIT,
-    left: OUTSIDE_HIT,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
+    position: "absolute", zIndex: 18, top: OUTSIDE_HIT, right: OUTSIDE_HIT, bottom: OUTSIDE_HIT, left: OUTSIDE_HIT,
+    alignItems: "center", justifyContent: "center", paddingHorizontal: 16,
   },
   emptyText: { color: "#475569", fontWeight: "600", textAlign: "center" },
 });

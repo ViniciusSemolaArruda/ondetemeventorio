@@ -28,6 +28,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const H_PADDING = 16;
 const GAP = 12;
 const CARD_HEIGHT = 128;
+const BG = "#f2f2f2";
 
 /** ===========================
  *  IMAGENS (mapa robusto)
@@ -118,9 +119,8 @@ export default function WelcomeScreen() {
   /** Continuar → salva preferências (primeira vez) e só então vai para HOME */
   const handleContinue = async () => {
     const token = user?.accessToken;
-    const isFirstTime = !user?.preferencesSet; // sem preferências no backend ainda?
+    const isFirstTime = !user?.preferencesSet;
 
-    // Se não tem token ou nada selecionado, só navega
     if (!token || selected.length === 0) {
       router.replace("/home");
       return;
@@ -139,7 +139,6 @@ export default function WelcomeScreen() {
       });
 
       if (isFirstTime) {
-        // PRIMEIRA VEZ: garante salvar + atualizar usuário antes de ir pra Home
         const res = await saveReq;
         if (!res.ok) {
           const text = await res.text();
@@ -149,7 +148,6 @@ export default function WelcomeScreen() {
         }
         router.replace("/home");
       } else {
-        // Próximas vezes: navega já e salva em background
         router.replace("/home");
         saveReq
           .then(async (res) => {
@@ -195,8 +193,8 @@ export default function WelcomeScreen() {
     : t("greeting_guest") || "Olá, bem-vindo!";
 
   return (
-    <View style={{ flex: 1 }}>
-      <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <View style={[styles.container, { backgroundColor: BG }]}>
         <View style={styles.padding}>
           <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.subtitle}>
@@ -207,7 +205,7 @@ export default function WelcomeScreen() {
           <FlatList
             contentContainerStyle={[
               styles.grid,
-              { paddingBottom: Math.max(insets.bottom, 8) },
+              { paddingBottom: Math.max(insets.bottom, 8), backgroundColor: BG },
             ]}
             data={quickSearchOptions}
             key={numColumns}
@@ -253,10 +251,10 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   padding: { padding: 16 },
 
-  greeting: { fontSize: 20, fontWeight: "bold" },
+  greeting: { fontSize: 20, fontWeight: "bold", color: "#111" },
   subtitle: { fontSize: 16, marginTop: 4, color: "#333" },
 
   grid: { paddingVertical: 16, rowGap: GAP },

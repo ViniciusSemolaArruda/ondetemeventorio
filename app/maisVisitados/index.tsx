@@ -27,6 +27,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SCREEN = Dimensions.get("window");
 const STORAGE_KEY_REGION = "@ote:selectedRegion";
+const BG = "#f2f2f2";
 
 /** mesmas categorias musicais usadas no seu carrossel */
 const MUSIC_CATEGORIES = new Set<string>([
@@ -45,7 +46,7 @@ export default function MaisVisitadosScreen() {
   const router = useRouter();
   const { isOpen, closeMenu } = useMenu();
   const { user } = useAuth();
-  const { t } = useI18n(); // <<< pega o t do contexto
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<GridItem[]>([]);
@@ -163,15 +164,15 @@ export default function MaisVisitadosScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
         data={[{ key: "header" }]}
         renderItem={null}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={
-          <View style={{ flexGrow: 1, minHeight: SCREEN.height }}>
+          <View style={{ flexGrow: 1, minHeight: SCREEN.height, backgroundColor: BG }}>
             <Header2 />
-            <View style={styles.container}>
+            <View style={[styles.container, { backgroundColor: BG }]}>
               <Text style={styles.title}>
                 {region ? `${t("more_events")} (${region})` : t("more_events")}
               </Text>
@@ -199,7 +200,7 @@ export default function MaisVisitadosScreen() {
           </View>
         }
         ListFooterComponent={
-          <View style={{ paddingTop: 32 }}>
+          <View style={{ paddingTop: 32, backgroundColor: BG }}>
             <Footer />
           </View>
         }

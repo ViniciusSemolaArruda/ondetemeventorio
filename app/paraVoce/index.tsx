@@ -28,6 +28,7 @@ type GridItem = ApiEvent & {
 };
 
 const STORAGE_KEY_REGION = "@ote:selectedRegion";
+const BG = "#f2f2f2";
 
 export default function ParaVoceScreen() {
   const { user } = useAuth();
@@ -35,7 +36,7 @@ export default function ParaVoceScreen() {
   const [loading, setLoading] = useState(true);
   const [barbershops, setBarbershops] = useState<GridItem[]>([]);
   const [region, setRegion] = useState<string>("");
-const { t } = useI18n();
+  const { t } = useI18n();
   const SCREEN_WIDTH = Dimensions.get("window").width;
 
   // pega região: ?region tem prioridade; senão AsyncStorage
@@ -161,20 +162,19 @@ const { t } = useI18n();
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
         data={[{ key: "header" }]}
         renderItem={null}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={
-          <View style={{ flexGrow: 1, minHeight: Dimensions.get("window").height }}>
-            <View style={styles.container}>
+          <View style={{ flexGrow: 1, minHeight: Dimensions.get("window").height, backgroundColor: BG }}>
+            <View style={[styles.container, { backgroundColor: BG }]}>
               <Header2 />
-              <View style={styles.content}>
-                
+              <View style={[styles.content, { backgroundColor: BG }]}>
                 <Text style={styles.title}>
-  {region ? `${t("events_for_you")} — ${region}` : t("events_for_you")}
-</Text>
+                  {region ? `${t("events_for_you")} — ${region}` : t("events_for_you")}
+                </Text>
 
                 {loading ? (
                   <ActivityIndicator size="large" color="#f97316" />
@@ -196,7 +196,7 @@ const { t } = useI18n();
           </View>
         }
         ListFooterComponent={
-          <View style={{ paddingTop: 32 }}>
+          <View style={{ paddingTop: 32, backgroundColor: BG }}>
             <Footer />
           </View>
         }
@@ -220,7 +220,6 @@ const { t } = useI18n();
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
     justifyContent: "space-between",
   },
   content: {
@@ -231,6 +230,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 20,
+    color: "#111",
   },
   overlay: {
     position: "absolute",

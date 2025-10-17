@@ -27,21 +27,18 @@ import Toast from "react-native-toast-message";
 // helpers de data/hora com timezone local
 const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
 const localTzOffset = () => {
-  // minutos de offset do LOCAL em relação ao UTC (positivo = à frente do UTC)
-  const mins = -new Date().getTimezoneOffset(); // ex RJ: -(-180) => 180 -> "+03:00"? cuidado!
-  // getTimezoneOffset = UTC - local. Logo no RJ (UTC-3) retorna +180.
-  // Queremos string "-03:00". Então:
+  const mins = -new Date().getTimezoneOffset();
   const sign = mins >= 0 ? "+" : "-";
   const abs = Math.abs(mins);
   const hh = pad(Math.floor(abs / 60));
   const mm = pad(abs % 60);
-  // Mas como getTimezoneOffset = UTC - local, para America/Sao_Paulo (UTC-3) dá 180,
-  // e o offset desejado é "-03:00". Portanto invertamos o sinal:
   const finalSign = sign === "+" ? "-" : "+";
   return `${finalSign}${hh}:${mm}`;
 };
 const withLocalOffset = (dateYYYYMMDD: string, timeHHMM: string) =>
   `${dateYYYYMMDD}T${timeHHMM}${localTzOffset()}`;
+
+const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
 export default function CreateEventPage() {
   const { user } = useAuth();
@@ -219,10 +216,10 @@ export default function CreateEventPage() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <Header2 />
 
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: BG }]} style={{ backgroundColor: BG }}>
         <Text style={styles.title}>Criar Novo Evento</Text>
 
         <BasicInfoSection title={title} onChangeTitle={setTitle} />
@@ -286,26 +283,26 @@ export default function CreateEventPage() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => setAcceptPrivacy((v) => !v)}
-            style={[styles.checkboxRow, { marginTop: 8 }]}
-          >
-            <View style={[styles.checkbox, acceptPrivacy && styles.checked]} />
-            <Text style={styles.checkboxLabel}>
-              Eu li e concordo com a
-              <Text
-                style={styles.link}
-                onPress={() =>
-                  Linking.openURL(
-                    "https://ondetemeventorio.vercel.app/privacidade"
-                  )
-                }
-              >
-                {" Política de Privacidade"}
+            <TouchableOpacity
+              onPress={() => setAcceptPrivacy((v) => !v)}
+              style={[styles.checkboxRow, { marginTop: 8 }]}
+            >
+              <View style={[styles.checkbox, acceptPrivacy && styles.checked]} />
+              <Text style={styles.checkboxLabel}>
+                Eu li e concordo com a
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    Linking.openURL(
+                      "https://ondetemeventorio.vercel.app/privacidade"
+                    )
+                  }
+                >
+                  {" Política de Privacidade"}
+                </Text>
               </Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+          </View>
 
         <TouchableOpacity
           style={styles.submitButton}
@@ -357,7 +354,7 @@ export default function CreateEventPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 16, backgroundColor: "#fff" },
+  container: { flexGrow: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: "bold", marginBottom: 16, marginTop: 8 },
 
   checkboxContainer: { marginVertical: 24 },
@@ -369,6 +366,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#999",
     marginRight: 8,
+    backgroundColor: "#fff",
   },
   checked: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   checkboxLabel: { fontSize: 14, color: "#333" },

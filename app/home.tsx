@@ -4,13 +4,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   FlatList,
   Image,
-  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -48,8 +45,6 @@ import {
 } from "@/constants/search";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type EventMapItem = {
   id: string;
@@ -145,11 +140,9 @@ export default function Home() {
   const [langHeaderVisible, setLangHeaderVisible] = useState(true);
   const firstName = useMemo(() => (user?.name || "").trim().split(" ")[0], [user?.name]);
 
+  // Scroll x Mapa
   const [listScrollEnabled, setListScrollEnabled] = useState(true);
   const [mapInteractive, setMapInteractive] = useState(false);
-  const [mapRect, setMapRect] = useState<{ x: number; y: number; width: number; height: number }>(
-    { x: 0, y: 0, width: SCREEN_WIDTH, height: 0 },
-  );
 
   // dados
   const [eventsForYou, setEventsForYou] = useState<ApiEvent[]>([]);
@@ -172,11 +165,6 @@ export default function Home() {
   }, [user?.preferencesSet, user?.preferences]);
 
   const loadingRef = useRef(false);
-
-  const onMapContainerLayout = (e: LayoutChangeEvent) => {
-    const { x, y, width, height } = e.nativeEvent.layout;
-    setMapRect({ x, y, width, height });
-  };
 
   // ✅ hidrata região persistida antes da 1ª busca
   useEffect(() => {
@@ -306,20 +294,19 @@ export default function Home() {
   // =========================
   // ✅ EVITAR REPETIÇÃO ENTRE SEÇÕES
   // =========================
-  const forYouIds = useMemo(() => new Set(eventsForYou.map((e) => String(e.id))), [eventsForYou]); // ✅
+  const forYouIds = useMemo(() => new Set(eventsForYou.map((e) => String(e.id))), [eventsForYou]);
   const fixedIds = useMemo(() => eventsFixed.map((e) => e.id), [eventsFixed]);
 
-  // arrays finais para render (excluem os que já foram mostrados em "Para você")
   const musicDatedRender = useMemo(
-    () => eventsMusicDated.filter((e) => !forYouIds.has(String(e.id))), // ✅
+    () => eventsMusicDated.filter((e) => !forYouIds.has(String(e.id))),
     [eventsMusicDated, forYouIds],
   );
   const nonMusicDatedRender = useMemo(
-    () => eventsNonMusicDated.filter((e) => !forYouIds.has(String(e.id))), // ✅
+    () => eventsNonMusicDated.filter((e) => !forYouIds.has(String(e.id))),
     [eventsNonMusicDated, forYouIds],
   );
   const fixedRender = useMemo(
-    () => eventsFixed.filter((e) => !forYouIds.has(String(e.id))), // ✅
+    () => eventsFixed.filter((e) => !forYouIds.has(String(e.id))),
     [eventsFixed, forYouIds],
   );
 
@@ -557,13 +544,12 @@ export default function Home() {
                   {fixedRender.length > 0 && (
                     <View style={{ marginTop: 24 }}>
                       <View style={styles.sectionHeader}>
-                        {/* ✅ título ajustado */}
                         <Text style={styles.sectionTitle}>
                           {t("day_events") || "Eventos do dia a dia"}
                         </Text>
                         <TouchableOpacity
                           style={styles.seeAllRow}
-                          onPress={() => router.push("/allnoDate" as any)} // mantém rota atual
+                          onPress={() => router.push("/allnoDate" as any)}
                         >
                           <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
                           <Feather name="chevron-right" size={16} color="#f97316" />
@@ -586,10 +572,12 @@ export default function Home() {
                   {/* Mapa */}
                   <View style={{ marginTop: 24 }}>
                     <Text style={styles.sectionTitle}>{t("events_map")}</Text>
-                    <View onLayout={onMapContainerLayout} style={{ marginTop: 12 }}>
+                    <View style={{ marginTop: 12 }}>
                       <MapRJ
                         events={mapData}
-                        onPressItem={(id) => router.push(`/barbershop/${id}`)}
+                        onPressItem={(id) =>
+                          router.push({ pathname: "/barbershop/[id]", params: { id } })
+                        }
                         isInteractive={mapInteractive}
                         onInteractionChange={(enabled) => {
                           setMapInteractive(enabled);
@@ -623,51 +611,6 @@ export default function Home() {
         }
         ListFooterComponent={<Footer />}
       />
-
-      {/* Backdrop do mapa quando interativo */}
-      {mapInteractive && mapRect.height > 0 && (
-        <>
-          <Pressable
-            style={[styles.abs, { left: 0, right: 0, top: 0, height: mapRect.y }]}
-            onPress={() => {
-              setMapInteractive(false);
-              setListScrollEnabled(true);
-            }}
-          />
-          <Pressable
-            style={[styles.abs, { left: 0, right: 0, top: mapRect.y + mapRect.height, bottom: 0 }]}
-            onPress={() => {
-              setMapInteractive(false);
-              setListScrollEnabled(true);
-            }}
-          />
-          <Pressable
-            style={[
-              styles.abs,
-              { top: mapRect.y, bottom: SCREEN_HEIGHT - (mapRect.y + mapRect.height), left: 0, width: mapRect.x },
-            ]}
-            onPress={() => {
-              setMapInteractive(false);
-              setListScrollEnabled(true);
-            }}
-          />
-          <Pressable
-            style={[
-              styles.abs,
-              {
-                top: mapRect.y,
-                bottom: SCREEN_HEIGHT - (mapRect.y + mapRect.height),
-                left: mapRect.x + mapRect.width,
-                right: 0,
-              },
-            ]}
-            onPress={() => {
-              setMapInteractive(false);
-              setListScrollEnabled(true);
-            }}
-          />
-        </>
-      )}
     </View>
   );
 }
@@ -719,6 +662,4 @@ const styles = StyleSheet.create({
   },
   quickImage: { width: 32, height: 32, marginBottom: 8, resizeMode: "contain" },
   quickText: { fontSize: 14, color: "#444", textAlign: "center" },
-
-  abs: { position: "absolute", backgroundColor: "transparent", zIndex: 10 },
 });

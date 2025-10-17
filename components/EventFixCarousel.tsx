@@ -1,22 +1,22 @@
 // components/EventFixCarousel.tsx (React Native)
 import { AntDesign } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    Modal,
-    Pressable,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  Pressable,
+  Image as RNImage,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
-import EventBadge from "@/components/EventBadge"; // reutiliza "maisEsperado" / "maisAcessado"
+import EventBadge from "@/components/EventBadge";
 import { apiHelpers } from "@/lib/api";
+import { FlashList } from "@shopify/flash-list";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 
 /* ===================== Tipos ===================== */
@@ -45,16 +45,97 @@ type Props = {
   onLoginPress: () => void;
 };
 
-const SCREEN_W = Dimensions.get("window").width;
+/* ===================== Constantes/Layout ===================== */
 const CARD_WIDTH = 260;
 const H_GAP = 16;
+const IMAGE_ASPECT = 16 / 9;
+const IMAGE_HEIGHT = Math.round(CARD_WIDTH / IMAGE_ASPECT);
 
-/* ===================== Utils ===================== */
+/* ===================== Helpers ===================== */
 function toSafeUri(raw?: string | null) {
   if (!raw) return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
   if (/^https?:\/\//i.test(raw) || /^data:image\//i.test(raw)) return raw;
   return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
 }
+
+/* ===================== Subcomponentes ===================== */
+const BadgeStack = memo(function BadgeStack({
+  esperado, acessado,
+}: { esperado: boolean; acessado: boolean }) {
+  if (!(esperado || acessado)) return null;
+  return (
+    <View style={styles.badgeStack}>
+      {esperado && <View style={styles.badgeItem}><EventBadge type="maisEsperado" /></View>}
+      {acessado && <View style={styles.badgeItem}><EventBadge type="maisAcessado" /></View>}
+    </View>
+  );
+});
+
+const ShareBtn = memo(function ShareBtn({ item }: { item: FixEvent }) {
+  const onShare = useCallback(async () => {
+    try {
+      await Share.share({
+        title: item.name,
+        message: `Confira ${item.name}${item.address ? ` em ${item.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${item.id}`,
+      });
+    } catch {}
+  }, [item.id, item.name, item.address]);
+
+  return (
+    <TouchableOpacity onPress={onShare} style={styles.shareInlineButton}>
+      <AntDesign name="sharealt" size={16} color="#555" />
+    </TouchableOpacity>
+  );
+});
+
+const FixCard = memo(function FixCard({
+  item,
+  liked,
+  count,
+  onPressCard,
+  onPressLike,
+  esperado,
+  acessado,
+}: {
+  item: FixEvent;
+  liked: boolean;
+  count: number;
+  onPressCard: (id: string) => void;
+  onPressLike: (id: string) => void;
+  esperado: boolean;
+  acessado: boolean;
+}) {
+  return (
+    <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={() => onPressCard(item.id)}>
+      <View style={styles.imageWrapper}>
+        <ExpoImage
+          source={{ uri: toSafeUri(item.imageUrl ?? null) }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="disk"
+          transition={100}
+        />
+
+        <BadgeStack esperado={esperado} acessado={acessado} />
+
+        <TouchableOpacity style={styles.likeButton} onPress={() => onPressLike(item.id)}>
+          <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
+          <Text style={styles.likeText}>{count}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+        <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
+        {!!item.address && <Text numberOfLines={2} style={styles.address}>{item.address}</Text>}
+
+        <View style={styles.footerRow}>
+          <Text style={styles.cta}>Saiba Mais</Text>
+          <ShareBtn item={item} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 /* ===================== Componente ===================== */
 export default function EventFixCarousel({
@@ -74,13 +155,10 @@ export default function EventFixCarousel({
   const [likesMap, setLikesMap] = useState<Record<string, { liked: boolean; count: number }>>({});
   useEffect(() => {
     const map: Record<string, { liked: boolean; count: number }> = {};
-    for (const e of fixos) {
-      map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
-    }
+    for (const e of fixos) map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
     setLikesMap(map);
   }, [fixos]);
 
-  // destaques
   const [mostLikedId, setMostLikedId] = useState<string | null>(null);
   const [mostAccessedId, setMostAccessedId] = useState<string | null>(null);
   useEffect(() => {
@@ -93,127 +171,76 @@ export default function EventFixCarousel({
         setMostAccessedId(res.mostAccessedId ?? null);
       } catch {}
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const toggleLikeApi = useCallback(
     async (id: string) => {
       const prev = likesMap[id] ?? { liked: false, count: 0 };
-      const optimistic = {
-        liked: !prev.liked,
-        count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1,
-      };
+      const optimistic = { liked: !prev.liked, count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1 };
       setLikesMap((m) => ({ ...m, [id]: optimistic }));
       try {
         const res = await apiHelpers.likeEvent(id);
-        setLikesMap((m) => ({
-          ...m,
-          [id]: { liked: !!res.liked, count: Number(res.count ?? 0) },
-        }));
-      } catch (err) {
+        setLikesMap((m) => ({ ...m, [id]: { liked: !!res.liked, count: Number(res.count ?? 0) } }));
+      } catch {
         setLikesMap((m) => ({ ...m, [id]: prev }));
-        console.error("Erro ao curtir:", err);
         Toast.show({ type: "error", text1: "Não foi possível curtir agora.", position: "bottom" });
       }
     },
     [likesMap]
   );
 
-  const onPressLike = (id: string) => {
+  const onPressLike = useCallback((id: string) => {
     if (!isLoggedIn) {
-      Toast.show({
-        type: "info",
-        text1: "Você precisa estar logado",
-        text2: "Entre na sua conta.",
-        position: "bottom",
-      });
+      Toast.show({ type: "info", text1: "Você precisa estar logado", text2: "Entre na sua conta.", position: "bottom" });
       setShowLoginModal(true);
       return;
     }
     toggleLikeApi(id);
-  };
+  }, [isLoggedIn, toggleLikeApi]);
 
-  const shareEvent = async (e: FixEvent) => {
-    try {
-      await Share.share({
-        title: e.name,
-        message: `Confira ${e.name}${e.address ? ` em ${e.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${e.id}`,
-      });
-    } catch {}
-  };
+  const onPressCard = useCallback((id: string) => {
+    router.push({ pathname: "/barbershop/[id]", params: { id } });
+  }, [router]);
+
+  const keyExtractor = useCallback((item: FixEvent) => item.id, []);
 
   const [showLoginModal, setShowLoginModal] = useState(false);
-
   if (fixos.length === 0) return null;
 
   return (
     <View style={styles.container}>
       {!!title && <Text style={styles.title}>{title}</Text>}
 
-      <FlatList
+      <FlashList
         data={fixos}
-        keyExtractor={(item) => item.id}
         horizontal
+        keyExtractor={keyExtractor}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingRight: 16 }}
         ItemSeparatorComponent={() => <View style={{ width: H_GAP }} />}
         renderItem={({ item }) => {
           const { liked, count } = likesMap[item.id] || { liked: false, count: 0 };
-          const showMaisEsperado = mostLikedId === item.id;
-          const showMaisAcessado = mostAccessedId === item.id;
+          const esperado = mostLikedId === item.id;
+          const acessado = mostAccessedId === item.id;
 
           return (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={styles.card}
-              onPress={() => router.push({ pathname: "/barbershop/[id]", params: { id: item.id } })}
-            >
-              {/* Imagem */}
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: toSafeUri(item.imageUrl) }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-
-                {(showMaisEsperado || showMaisAcessado) && (
-                  <View style={styles.badgeStack}>
-                    {showMaisEsperado && <EventBadge type="maisEsperado" />}
-                    {showMaisAcessado && <EventBadge type="maisAcessado" />}
-                  </View>
-                )}
-
-                {/* Like pill */}
-                <TouchableOpacity style={styles.likeButton} onPress={() => onPressLike(item.id)}>
-                  <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
-                  <Text style={styles.likeText}>{count}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Conteúdo */}
-              <View style={styles.content}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {item.name}
-                </Text>
-                {!!item.address && (
-                  <Text numberOfLines={2} style={styles.address}>
-                    {item.address}
-                  </Text>
-                )}
-
-                {/* Footer: "Saiba Mais" + Compartilhar (mesma linha) */}
-                <View style={styles.footerRow}>
-                  <Text style={styles.cta}>Saiba Mais</Text>
-                  <TouchableOpacity onPress={() => shareEvent(item)} style={styles.shareInlineButton}>
-                    <AntDesign name="sharealt" size={16} color="#555" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <FixCard
+              item={item}
+              liked={liked}
+              count={count}
+              onPressCard={onPressCard}
+              onPressLike={onPressLike}
+              esperado={esperado}
+              acessado={acessado}
+            />
           );
         }}
+         
+        overrideItemLayout={(layout: any) => { layout.size = CARD_WIDTH; }}
+        snapToInterval={CARD_WIDTH + H_GAP}
+        decelerationRate="fast"
+        snapToAlignment="start"
       />
 
       {/* Modal de login */}
@@ -224,13 +251,10 @@ export default function EventFixCarousel({
             <Text style={styles.modalSubtitle}>Entre com sua conta Google para continuar</Text>
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => {
-                setShowLoginModal(false);
-                onLoginPress();
-              }}
+              onPress={() => { setShowLoginModal(false); onLoginPress(); }}
             >
-              <Image
-                source={require("../assets/images/google.png")}
+              <RNImage
+                source={require("@/assets/images/google.png")}
                 style={{ width: 20, height: 20, marginRight: 10 }}
               />
               <Text style={styles.loginButtonText}>Entrar com Google</Text>
@@ -264,14 +288,15 @@ const styles = StyleSheet.create({
 
   imageWrapper: {
     width: "100%",
-    aspectRatio: 16 / 9,
+    height: IMAGE_HEIGHT, // evita custo do aspectRatio
     overflow: "hidden",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   image: { width: "100%", height: "100%" },
 
-  badgeStack: { position: "absolute", left: 8, top: 8, gap: 6 },
+  badgeStack: { position: "absolute", left: 8, top: 8 },
+  badgeItem: { marginBottom: 6 },
 
   likeButton: {
     position: "absolute",
@@ -298,12 +323,7 @@ const styles = StyleSheet.create({
   name: { fontWeight: "800", fontSize: 16, color: "#0F172A" },
   address: { fontSize: 12, color: "#6B7280", marginTop: 4, minHeight: 32 },
 
-  footerRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+  footerRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cta: { fontSize: 12, color: "#059669", fontWeight: "700" },
   shareInlineButton: {
     padding: 6,

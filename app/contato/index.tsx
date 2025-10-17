@@ -3,23 +3,23 @@ import Header2 from "@/components/Header2";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleAuth } from "@/hooks/useGoogleLogin";
 import {
-    apiHelpers,
-    type ChatMeResponse,
-    type ChatMessage,
-    setAuthToken,
+  apiHelpers,
+  type ChatMeResponse,
+  type ChatMessage,
+  setAuthToken,
 } from "@/lib/api";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -27,6 +27,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
    Constantes / utils
 =========================== */
 const BRAND_ORANGE = "#FF7701";
+const BG = "#f2f2f2";
 
 type FaqItem = { q: string; a: React.ReactNode };
 
@@ -425,55 +426,54 @@ function ChatPanel({
     };
   }, [user, open, loadMyChat]);
 
- const handleSend = useCallback(async () => {
-  const payload = message.trim();
-  if (!payload) return;
+  const handleSend = useCallback(async () => {
+    const payload = message.trim();
+    if (!payload) return;
 
-  // limpa o input imediatamente
-  setMessage("");
+    // limpa o input imediatamente
+    setMessage("");
 
-  if (!user) {
-    await signInWithGoogle?.();
-    return;
-  }
-
-  const ok = await ensureAuth();
-  if (!ok) {
-    await signInWithGoogle?.();
-    return;
-  }
-
-  try {
-    setSending(true);
-
-    if (convStatus === "closed" && convId) {
-      const reopen = await apiHelpers.chat.reopenConversation(convId);
-      if (reopen?.ok) setConvStatus("open");
+    if (!user) {
+      await signInWithGoogle?.();
+      return;
     }
 
-    if (!isWithinBusinessHoursNow()) showOutOfHoursNotice();
+    const ok = await ensureAuth();
+    if (!ok) {
+      await signInWithGoogle?.();
+      return;
+    }
 
-    justSentRef.current = true;
+    try {
+      setSending(true);
 
-    // usa 'payload' (a cópia) pra enviar
-    const resp = await apiHelpers.chat.sendChatMessage(payload);
-    if (!resp?.ok) throw new Error("Falha ao enviar a mensagem.");
+      if (convStatus === "closed" && convId) {
+        const reopen = await apiHelpers.chat.reopenConversation(convId);
+        if (reopen?.ok) setConvStatus("open");
+      }
 
-    await loadMyChat();
-  } finally {
-    setSending(false);
-  }
-}, [
-  message,
-  user,
-  convStatus,
-  convId,
-  loadMyChat,
-  showOutOfHoursNotice,
-  signInWithGoogle,
-  ensureAuth,
-]);
+      if (!isWithinBusinessHoursNow()) showOutOfHoursNotice();
 
+      justSentRef.current = true;
+
+      // usa 'payload' (a cópia) pra enviar
+      const resp = await apiHelpers.chat.sendChatMessage(payload);
+      if (!resp?.ok) throw new Error("Falha ao enviar a mensagem.");
+
+      await loadMyChat();
+    } finally {
+      setSending(false);
+    }
+  }, [
+    message,
+    user,
+    convStatus,
+    convId,
+    loadMyChat,
+    showOutOfHoursNotice,
+    signInWithGoogle,
+    ensureAuth,
+  ]);
 
   // ✅ Hooks no topo: renderItem e keyExtractor memorizados
   const renderItem = useCallback(({ item }: { item: ChatMessage }) => {
@@ -506,7 +506,7 @@ function ChatPanel({
             right: 0,
             top: 0,
             bottom: 0,
-            backgroundColor: "#fff",
+            backgroundColor: BG, // << fundo acinzentado no chat
           }}
         >
           {/* Cabeçalho */}
@@ -537,6 +537,7 @@ function ChatPanel({
                 alignItems: "center",
                 justifyContent: "center",
                 padding: 24,
+                backgroundColor: BG,
               }}
             >
               <Text
@@ -549,9 +550,7 @@ function ChatPanel({
               >
                 Acesse sua conta
               </Text>
-              <Text
-                style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}
-              >
+              <Text style={{ textAlign: "center", color: "#6b7280", marginBottom: 16 }}>
                 Entre com sua conta Google para continuar
               </Text>
               <TouchableOpacity
@@ -584,7 +583,7 @@ function ChatPanel({
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, backgroundColor: BG }}>
               {/* Aviso segurança */}
               <View
                 style={{
@@ -626,11 +625,9 @@ function ChatPanel({
               ) : null}
 
               {/* Lista */}
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, backgroundColor: BG }}>
                 {loading ? (
-                  <View
-                    style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-                  >
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
                     <ActivityIndicator />
                   </View>
                 ) : (
@@ -639,6 +636,7 @@ function ChatPanel({
                     contentContainerStyle={{
                       paddingHorizontal: 16,
                       paddingVertical: 12,
+                      backgroundColor: BG,
                     }}
                     data={chat}
                     keyExtractor={keyExtractor}
@@ -647,14 +645,9 @@ function ChatPanel({
                       stick && listRef.current?.scrollToEnd({ animated: true })
                     }
                     onScroll={(e) => {
-                      const {
-                        layoutMeasurement,
-                        contentOffset,
-                        contentSize,
-                      } = e.nativeEvent;
+                      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
                       const distanceFromBottom =
-                        contentSize.height -
-                        (layoutMeasurement.height + contentOffset.y);
+                        contentSize.height - (layoutMeasurement.height + contentOffset.y);
                       setStick(distanceFromBottom < 120);
                     }}
                     ListFooterComponent={outOfHoursFooter}
@@ -673,6 +666,7 @@ function ChatPanel({
                   borderTopColor: "#e5e7eb",
                   padding: 8,
                   paddingBottom: 8 + insets.bottom,
+                  backgroundColor: BG,
                 }}
               >
                 <Text
@@ -694,7 +688,7 @@ function ChatPanel({
                   <TextInput
                     value={message}
                     onChangeText={setMessage}
-                    placeholder={placeholder}
+                    placeholder={isWithinBusinessHoursNow() ? "Digite uma mensagem" : "Fora do horário (07:30–18:00). Envie sua mensagem e responderemos no próximo período."}
                     placeholderTextColor="#9ca3af"
                     editable={!sending}
                     style={{
@@ -705,6 +699,7 @@ function ChatPanel({
                       borderRadius: 999,
                       paddingHorizontal: 14,
                       fontSize: 14,
+                      backgroundColor: "#fff",
                     }}
                   />
                   <TouchableOpacity
@@ -746,12 +741,13 @@ export default function ContatoScreen() {
   const [chatOpen, setChatOpen] = useState(false);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={[]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: BG }} edges={[]}>
       <StatusBar barStyle="light-content" backgroundColor={BRAND_ORANGE} />
 
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 8 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 8, backgroundColor: BG }}
+        style={{ backgroundColor: BG }}
       >
         <Header2 />
 
@@ -790,6 +786,7 @@ export default function ContatoScreen() {
             width: "100%",
             alignSelf: "center",
             paddingHorizontal: 20,
+            backgroundColor: BG,
           }}
         >
           <View style={{ height: 1, backgroundColor: "#e5e7eb", marginTop: 16 }} />
@@ -844,6 +841,7 @@ export default function ContatoScreen() {
             width: "100%",
             paddingHorizontal: 20,
             paddingVertical: 12,
+            backgroundColor: BG,
           }}
         >
           <View style={{ gap: 12 }}>
@@ -881,8 +879,25 @@ export default function ContatoScreen() {
         </View>
 
         {/* FAQ */}
-        <View style={{ maxWidth: 1200, width: "100%", alignSelf: "center", paddingHorizontal: 20, paddingBottom: 24 }}>
-          <Text style={{ textAlign: "center", fontSize: 24, fontWeight: "800", color: "#111827", marginBottom: 16 }}>
+        <View
+          style={{
+            maxWidth: 1200,
+            width: "100%",
+            alignSelf: "center",
+            paddingHorizontal: 20,
+            paddingBottom: 24,
+            backgroundColor: BG,
+          }}
+        >
+          <Text
+            style={{
+              textAlign: "center",
+              fontSize: 24,
+              fontWeight: "800",
+              color: "#111827",
+              marginBottom: 16,
+            }}
+          >
             Dúvidas frequentes
           </Text>
 
@@ -895,7 +910,9 @@ export default function ContatoScreen() {
           </View>
         </View>
 
-        <Footer />
+        <View style={{ backgroundColor: BG }}>
+          <Footer />
+        </View>
       </ScrollView>
 
       {/* FAB do chat */}

@@ -12,6 +12,8 @@ type CookieRow = {
   origin: string;
 };
 
+const BG = "#f2f2f2";
+
 export default function CookiesScreen() {
   const { t } = useI18n();
 
@@ -55,7 +57,10 @@ export default function CookiesScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent}>
+    <ScrollView
+      style={[styles.screen, { backgroundColor: BG }]}
+      contentContainerStyle={[styles.screenContent, { backgroundColor: BG }]}
+    >
       {/* Header agora rola junto */}
       <Header2 />
 
@@ -202,13 +207,15 @@ export default function CookiesScreen() {
       </View>
 
       {/* Footer também rola junto */}
-      <Footer />
+      <View style={{ backgroundColor: BG }}>
+        <Footer />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff" },
+  screen: { flex: 1 },
   screenContent: { paddingBottom: 16 },
 
   container: {
@@ -248,11 +255,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     marginBottom: 12,
+    backgroundColor: "#fff",
   },
   row: {
     flexDirection: "row",
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
+    backgroundColor: "#fff",
   },
   rowHeader: {
     backgroundColor: "#f3f4f6",

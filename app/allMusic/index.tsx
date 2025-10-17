@@ -3,14 +3,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 
@@ -26,6 +26,7 @@ import { mapCityToRegion } from "@/lib/rjRegions";
 
 const SCREEN = Dimensions.get("window");
 const STORAGE_KEY_REGION = "@ote:selectedRegion";
+const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
 // mesmas categorias musicais do web
 const MUSIC_CATEGORIES = [
@@ -54,7 +55,7 @@ export default function AllMusicScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { isOpen, closeMenu } = useMenu();
-const { t } = useI18n();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<GridItem[]>([]);
   const [region, setRegion] = useState<string>("");
@@ -68,7 +69,9 @@ const { t } = useI18n();
       const urlRegion = (regionFromParams ?? "").toString().trim();
       if (urlRegion) {
         setRegion(urlRegion);
-        try { await AsyncStorage.setItem(STORAGE_KEY_REGION, urlRegion); } catch {}
+        try {
+          await AsyncStorage.setItem(STORAGE_KEY_REGION, urlRegion);
+        } catch {}
         return;
       }
       try {
@@ -81,24 +84,20 @@ const { t } = useI18n();
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // 1) busca todos
       const data: ApiEvent[] = await apiHelpers.events();
-
-      // 2) ❌ descarta sem startDate (ou data inválida)
       const onlyDated = data.filter((e) => !!e.startDate && toDate(e.startDate));
 
-      // 3) aprovados + ao menos 1 categoria musical
       const musicaisApproved = onlyDated.filter(
-        (e) => e.aprovado === true && (Array.isArray(e.categories) ? e.categories : []).some((c) => MUSIC_SET.has(c))
+        (e) =>
+          e.aprovado === true &&
+          (Array.isArray(e.categories) ? e.categories : []).some((c) => MUSIC_SET.has(c))
       );
 
-      // 4) filtro por região (se houver)
       const regionTrim = (region || "").trim();
       const byRegion = regionTrim
         ? musicaisApproved.filter((e) => mapCityToRegion(e.address ?? "") === regionTrim)
         : musicaisApproved;
 
-      // 5) normaliza para o Grid
       const mapped: GridItem[] = byRegion
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
         .map((e) => ({
@@ -127,7 +126,6 @@ const { t } = useI18n();
     load();
   }, [load]);
 
-  // like com atualização do card (sem otimista)
   const onToggleLike = useCallback(
     async (id: string) => {
       if (!isLoggedIn) {
@@ -135,7 +133,7 @@ const { t } = useI18n();
         return;
       }
       try {
-        const res = await apiHelpers.likeEvent(id); // { liked, count }
+        const res = await apiHelpers.likeEvent(id);
         setItems((prev) =>
           prev.map((it) =>
             it.id === id
@@ -155,18 +153,20 @@ const { t } = useI18n();
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
         data={[{ key: "header" }]}
         renderItem={null}
         keyExtractor={(it) => it.key}
+        style={{ backgroundColor: BG }}
+        contentContainerStyle={{ backgroundColor: BG }}
         ListHeaderComponent={
-          <View style={{ flexGrow: 1, minHeight: SCREEN.height }}>
+          <View style={{ flexGrow: 1, minHeight: SCREEN.height, backgroundColor: BG }}>
             <Header2 />
             <View style={styles.container}>
               <Text style={styles.title}>
-  {region ? `${t("music_events")} — ${region}` : t("music_events")}
-</Text>
+                {region ? `${t("music_events")} — ${region}` : t("music_events")}
+              </Text>
 
               {loading ? (
                 <ActivityIndicator size="large" color="#f97316" />
@@ -183,20 +183,20 @@ const { t } = useI18n();
 
               {!loading && items.length === 0 ? (
                 <Text style={styles.empty}>
-                  Nenhum evento musical encontrado{region ? ` para a região ${region}` : ""}.
+                  Nenhum evento musical encontrado
+                  {region ? ` para a região ${region}` : ""}.
                 </Text>
               ) : null}
             </View>
           </View>
         }
         ListFooterComponent={
-          <View style={{ paddingTop: 32 }}>
+          <View style={{ paddingTop: 32, backgroundColor: BG }}>
             <Footer />
           </View>
         }
       />
 
-      {/* Sidebar (menu) — sobrepõe ao abrir */}
       {isOpen && (
         <Pressable style={styles.overlay} onPress={closeMenu}>
           <AnimatedRN.View entering={SlideInRight} exiting={SlideOutRight} style={styles.sidebar}>

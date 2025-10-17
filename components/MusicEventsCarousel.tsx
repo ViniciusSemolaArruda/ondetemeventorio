@@ -2,19 +2,19 @@
 import EventBadge from "@/components/EventBadge";
 import { apiHelpers } from "@/lib/api";
 import { AntDesign } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    Modal,
-    Pressable,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  Pressable,
+  Image as RNImage,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -39,31 +39,22 @@ type HighlightsPayload = {
 
 type Props = {
   barbershops: CarouselEvent[];
-  className?: string; // ignorado no RN, mantido por compat
+  className?: string; // ignorado no RN
   isLoggedIn: boolean;
   onLoginPress: () => void;
-  userPrefs?: string[] | null; // preferências do usuário (opcional)
+  userPrefs?: string[] | null;
 };
 
 /* ===================== Constantes ===================== */
 const MUSIC_CATEGORIES = new Set<string>([
-  "Carnaval",
-  "Rodas de Samba",
-  "Bossa Nova",
-  "Passinho",
-  "Funk",
-  "Eletrônica",
-  "Forró",
-  "MPB",
-  "Rock",
-  "Blues",
-  "Jazz",
-  "Chorinho",
+  "Carnaval","Rodas de Samba","Bossa Nova","Passinho","Funk","Eletrônica",
+  "Forró","MPB","Rock","Blues","Jazz","Chorinho",
 ]);
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const CARD_WIDTH = 260; // igual ao web
+const CARD_WIDTH = 260;      // igual ao web
 const H_GAP = 16;
+const IMAGE_ASPECT = 16 / 9;
+const IMAGE_HEIGHT = Math.round(CARD_WIDTH / IMAGE_ASPECT);
 
 /* ===================== Helpers ===================== */
 function toDate(v?: string | Date | null): Date | null {
@@ -72,28 +63,119 @@ function toDate(v?: string | Date | null): Date | null {
   const d = new Date(v);
   return isNaN(+d) ? null : d;
 }
-
 function daysUntil(dateLike?: string | Date | null): number | null {
   const d = toDate(dateLike);
   if (!d) return null;
-  const ms = d.getTime() - Date.now();
-  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  return Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 }
-
 function isHappeningNow(start?: string | Date | null, end?: string | Date | null) {
   const s = toDate(start);
   if (!s) return false;
   const now = new Date();
   const e = toDate(end);
-  if (e) return s.getTime() <= now.getTime() && now.getTime() <= e.getTime();
-  return s.toDateString() === now.toDateString() && s.getTime() <= now.getTime();
+  return e ? s <= now && now <= e : s.toDateString() === now.toDateString() && s <= now;
 }
-
 function toSafeUri(raw?: string | null) {
   if (!raw) return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
   if (/^https?:\/\//i.test(raw) || /^data:image\//i.test(raw)) return raw;
   return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
 }
+
+/* ===================== Subcomponentes ===================== */
+const BadgeStack = memo(function BadgeStack({
+  acontecendo, chegando, esperado, acessado,
+}: {
+  acontecendo: boolean; chegando: boolean; esperado: boolean; acessado: boolean;
+}) {
+  if (!(acontecendo || chegando || esperado || acessado)) return null;
+  return (
+    <View style={styles.badgeStack}>
+      {acontecendo && <View style={styles.badgeItem}><EventBadge type="acontecendo" /></View>}
+      {esperado && <View style={styles.badgeItem}><EventBadge type="maisEsperado" /></View>}
+      {chegando && <View style={styles.badgeItem}><EventBadge type="estaChegando" /></View>}
+      {acessado && <View style={styles.badgeItem}><EventBadge type="maisAcessado" /></View>}
+    </View>
+  );
+});
+
+const ShareBtn = memo(function ShareBtn({ item }: { item: CarouselEvent }) {
+  const onShare = useCallback(async () => {
+    try {
+      await Share.share({
+        title: item.name,
+        message: `Confira ${item.name}${item.address ? ` em ${item.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${item.id}`,
+      });
+    } catch {}
+  }, [item.id, item.name, item.address]);
+
+  return (
+    <TouchableOpacity onPress={onShare} style={styles.shareInlineButton}>
+      <AntDesign name="sharealt" size={16} color="#555" />
+    </TouchableOpacity>
+  );
+});
+
+const MusicCard = memo(function MusicCard({
+  item,
+  liked,
+  count,
+  onPressCard,
+  onPressLike,
+  acontecendo,
+  chegando,
+  esperado,
+  acessado,
+}: {
+  item: CarouselEvent;
+  liked: boolean;
+  count: number;
+  onPressCard: (id: string) => void;
+  onPressLike: (id: string) => void;
+  acontecendo: boolean;
+  chegando: boolean;
+  esperado: boolean;
+  acessado: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={styles.card}
+      onPress={() => onPressCard(item.id)}
+    >
+      <View style={styles.imageWrapper}>
+        <ExpoImage
+          source={{ uri: toSafeUri(item.imageUrl) }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="disk"
+          transition={100}
+        />
+
+        <BadgeStack
+          acontecendo={acontecendo}
+          chegando={chegando}
+          esperado={esperado}
+          acessado={acessado}
+        />
+
+        <TouchableOpacity style={styles.likeButton} onPress={() => onPressLike(item.id)}>
+          <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
+          <Text style={styles.likeText}>{count}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+        <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
+        {!!item.address && <Text numberOfLines={2} style={styles.address}>{item.address}</Text>}
+
+        <View style={styles.footerRow}>
+          <Text style={styles.cta}>Saiba Mais</Text>
+          <ShareBtn item={item} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 /* ===================== Componente ===================== */
 export default function MusicEventsCarousel({
@@ -106,23 +188,16 @@ export default function MusicEventsCarousel({
 
   const [likesMap, setLikesMap] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [showLoginModal, setShowLoginModal] = useState(false);
-
   const [mostLikedId, setMostLikedId] = useState<string | null>(null);
   const [mostAccessedId, setMostAccessedId] = useState<string | null>(null);
 
-  // aprovados
-  const aprovados = useMemo(
-    () => barbershops.filter((b) => b.aprovado === true),
-    [barbershops]
-  );
+  const aprovados = useMemo(() => barbershops.filter((b) => b.aprovado === true), [barbershops]);
 
-  // apenas musicais
   const apenasMusicais = useMemo(
     () => aprovados.filter((e) => (e.categories || []).some((c) => MUSIC_CATEGORIES.has(c))),
     [aprovados]
   );
 
-  // aplica exclusão por preferências (igual ao web: remove eventos que colidem com prefs)
   const eventosParaCarrossel = useMemo(() => {
     if (!userPrefs || userPrefs.length === 0) return apenasMusicais;
     return apenasMusicais.filter(
@@ -130,16 +205,12 @@ export default function MusicEventsCarousel({
     );
   }, [apenasMusicais, userPrefs]);
 
-  // likes iniciais
   useEffect(() => {
     const map: Record<string, { liked: boolean; count: number }> = {};
-    for (const e of eventosParaCarrossel) {
-      map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
-    }
+    for (const e of eventosParaCarrossel) map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
     setLikesMap(map);
   }, [eventosParaCarrossel]);
 
-  // highlights
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -148,139 +219,81 @@ export default function MusicEventsCarousel({
         if (!mounted) return;
         setMostLikedId(res.mostLikedId ?? null);
         setMostAccessedId(res.mostAccessedId ?? null);
-      } catch {
-        // silencioso
-      }
+      } catch {}
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const toggleLikeApi = useCallback(
     async (id: string) => {
       const prev = likesMap[id] ?? { liked: false, count: 0 };
-      const optimistic = {
-        liked: !prev.liked,
-        count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1,
-      };
+      const optimistic = { liked: !prev.liked, count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1 };
       setLikesMap((m) => ({ ...m, [id]: optimistic }));
       try {
         const res = await apiHelpers.likeEvent(id);
-        setLikesMap((m) => ({
-          ...m,
-          [id]: { liked: !!res.liked, count: Number(res.count ?? 0) },
-        }));
+        setLikesMap((m) => ({ ...m, [id]: { liked: !!res.liked, count: Number(res.count ?? 0) } }));
       } catch (err) {
         setLikesMap((m) => ({ ...m, [id]: prev }));
-        console.error("Erro ao curtir:", err);
         Toast.show({ type: "error", text1: "Não foi possível curtir agora.", position: "bottom" });
       }
     },
     [likesMap]
   );
 
-  const handlePressLike = (id: string) => {
+  const handlePressLike = useCallback((id: string) => {
     if (!isLoggedIn) {
-      Toast.show({
-        type: "info",
-        text1: "Você precisa estar logado",
-        text2: "Entre na sua conta.",
-        position: "bottom",
-        visibilityTime: 3000,
-      });
+      Toast.show({ type: "info", text1: "Você precisa estar logado", text2: "Entre na sua conta.", position: "bottom", visibilityTime: 3000 });
       setShowLoginModal(true);
       return;
     }
     toggleLikeApi(id);
-  };
+  }, [isLoggedIn, toggleLikeApi]);
 
-  const shareEvent = async (e: CarouselEvent) => {
-    try {
-      await Share.share({
-        title: e.name,
-        message: `Confira ${e.name}${e.address ? ` em ${e.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${e.id}`,
-      });
-    } catch (error) {
-      console.error("Erro ao compartilhar:", error);
-    }
-  };
+  const onPressCard = useCallback((id: string) => {
+    router.push({ pathname: "/barbershop/[id]", params: { id } });
+  }, [router]);
+
+  const keyExtractor = useCallback((item: CarouselEvent) => item.id, []);
 
   if (eventosParaCarrossel.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <FlashList
         data={eventosParaCarrossel}
-        keyExtractor={(item) => item.id}
         horizontal
+        keyExtractor={keyExtractor}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ width: H_GAP }} />}
         renderItem={({ item }) => {
           const { liked, count } = likesMap[item.id] || { liked: false, count: 0 };
-
-          const showMaisEsperado = mostLikedId === item.id;
-          const showMaisAcessado = mostAccessedId === item.id;
           const dias = daysUntil(item.startDate);
           const showEstaChegando = dias !== null && dias >= 0 && dias <= 5;
           const showAcontecendo = isHappeningNow(item.startDate, item.endDate);
+          const showMaisEsperado = mostLikedId === item.id;
+          const showMaisAcessado = mostAccessedId === item.id;
 
           return (
-            <TouchableOpacity
-              activeOpacity={0.9}
-              style={styles.card}
-              onPress={() => router.push({ pathname: "/barbershop/[id]", params: { id: item.id } })}
-            >
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: toSafeUri(item.imageUrl) }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-
-                {(showAcontecendo || showMaisEsperado || showEstaChegando || showMaisAcessado) && (
-                  <View style={styles.badgeStack}>
-                    {showAcontecendo && <EventBadge type="acontecendo" />}
-                    {showMaisEsperado && <EventBadge type="maisEsperado" />}
-                    {showEstaChegando && <EventBadge type="estaChegando" />}
-                    {showMaisAcessado && <EventBadge type="maisAcessado" />}
-                  </View>
-                )}
-
-                {/* Like pill */}
-                <TouchableOpacity style={styles.likeButton} onPress={() => handlePressLike(item.id)}>
-                  <AntDesign
-                    name={liked ? "heart" : "hearto"}
-                    size={16}
-                    color={liked ? "red" : "#9CA3AF"}
-                  />
-                  <Text style={styles.likeText}>{count}</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Conteúdo */}
-              <View style={styles.content}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {item.name}
-                </Text>
-                {!!item.address && (
-                  <Text numberOfLines={2} style={styles.address}>
-                    {item.address}
-                  </Text>
-                )}
-
-                {/* Footer: Saiba Mais + Compartilhar na mesma linha */}
-                <View style={styles.footerRow}>
-                  <Text style={styles.cta}>Saiba Mais</Text>
-                  <TouchableOpacity onPress={() => shareEvent(item)} style={styles.shareInlineButton}>
-                    <AntDesign name="sharealt" size={16} color="#555" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <MusicCard
+              item={item}
+              liked={liked}
+              count={count}
+              onPressCard={onPressCard}
+              onPressLike={handlePressLike}
+              acontecendo={showAcontecendo}
+              chegando={showEstaChegando}
+              esperado={showMaisEsperado}
+              acessado={showMaisAcessado}
+            />
           );
         }}
+        // Se a tipagem da sua versão não incluir 'size', mantenha o cast:
+         
+        overrideItemLayout={(layout: any) => { layout.size = CARD_WIDTH; }}
+        snapToInterval={CARD_WIDTH + H_GAP}
+        decelerationRate="fast"
+        snapToAlignment="start"
       />
 
       {/* Modal de login */}
@@ -291,13 +304,10 @@ export default function MusicEventsCarousel({
             <Text style={styles.modalSubtitle}>Entre com sua conta Google para continuar</Text>
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => {
-                setShowLoginModal(false);
-                onLoginPress();
-              }}
+              onPress={() => { setShowLoginModal(false); onLoginPress(); }}
             >
-              <Image
-                source={require("../assets/images/google.png")}
+              <RNImage
+                source={require("@/assets/images/google.png")}
                 style={{ width: 20, height: 20, marginRight: 10 }}
               />
               <Text style={styles.loginButtonText}>Entrar com Google</Text>
@@ -313,6 +323,7 @@ export default function MusicEventsCarousel({
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingTop: 16 },
   list: { paddingRight: 16 },
+
   card: {
     width: CARD_WIDTH,
     borderRadius: 12,
@@ -327,16 +338,18 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     position: "relative",
   },
+
   imageWrapper: {
     width: "100%",
-    aspectRatio: 16 / 9,
+    height: IMAGE_HEIGHT, // evita custo de layout com aspectRatio
     overflow: "hidden",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   image: { width: "100%", height: "100%" },
 
-  badgeStack: { position: "absolute", left: 8, top: 8, gap: 6 },
+  badgeStack: { position: "absolute", left: 8, top: 8 },
+  badgeItem: { marginBottom: 6 },
 
   likeButton: {
     position: "absolute",
@@ -363,12 +376,7 @@ const styles = StyleSheet.create({
   name: { fontWeight: "800", fontSize: 16, color: "#0F172A" },
   address: { fontSize: 12, color: "#6B7280", marginTop: 4, minHeight: 32 },
 
-  footerRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+  footerRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cta: { fontSize: 12, color: "#059669", fontWeight: "700" },
   shareInlineButton: {
     padding: 6,

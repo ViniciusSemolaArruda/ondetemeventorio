@@ -2,14 +2,14 @@
 import EventBadge from "@/components/EventBadge";
 import { apiHelpers } from "@/lib/api";
 import { AntDesign } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
+import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Dimensions,
-  FlatList,
-  Image,
   Modal,
   Pressable,
+  Image as RNImage,
   Share,
   StyleSheet,
   Text,
@@ -51,35 +51,128 @@ function toDate(v?: string | Date | null): Date | null {
   const d = new Date(v);
   return isNaN(+d) ? null : d;
 }
-
 function daysUntil(dateLike?: string | Date | null): number | null {
   const d = toDate(dateLike);
   if (!d) return null;
-  const ms = d.getTime() - Date.now();
-  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  return Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 }
-
 function isHappeningNow(start?: string | Date | null, end?: string | Date | null) {
   const s = toDate(start);
   if (!s) return false;
   const now = new Date();
   const e = toDate(end);
-  if (e) return s.getTime() <= now.getTime() && now.getTime() <= e.getTime();
-  return s.toDateString() === now.toDateString() && s.getTime() <= now.getTime();
+  return e ? s <= now && now <= e : s.toDateString() === now.toDateString() && s <= now;
 }
-
 function toSafeUri(raw?: string | null) {
   if (!raw) return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
   if (/^https?:\/\//i.test(raw) || /^data:image\//i.test(raw)) return raw;
   return "https://dummyimage.com/600x338/eeeeee/aaaaaa.png&text=Evento";
 }
 
-/* ===================== Layout (iguais ao EventFixCarousel) ===================== */
-const SCREEN_W = Dimensions.get("window").width;
+/* ===================== Layout ===================== */
 const H_GAP = 16;
-const CARD_WIDTH = 260; // <-- igual ao EventFixCarousel
+const CARD_WIDTH = 260;         // mesmo do seu carrossel
+const IMAGE_ASPECT = 16 / 9;
+const IMAGE_HEIGHT = Math.round(CARD_WIDTH / IMAGE_ASPECT);
 const CONTAINER_PAD_H = 16;
 
+/* ===================== Subcomponentes ===================== */
+const BadgeStack = memo(function BadgeStack({
+  acontecendo, chegando, esperado, acessado,
+}: {
+  acontecendo: boolean; chegando: boolean; esperado: boolean; acessado: boolean;
+}) {
+  if (!(acontecendo || chegando || esperado || acessado)) return null;
+  return (
+    <View style={styles.badgeStack}>
+      {acontecendo && <View style={styles.badgeItem}><EventBadge type="acontecendo" /></View>}
+      {chegando && <View style={styles.badgeItem}><EventBadge type="estaChegando" /></View>}
+      {esperado && <View style={styles.badgeItem}><EventBadge type="maisEsperado" /></View>}
+      {acessado && <View style={styles.badgeItem}><EventBadge type="maisAcessado" /></View>}
+    </View>
+  );
+});
+
+const ShareBtn = memo(function ShareBtn({ item }: { item: Barbershop }) {
+  const onShare = useCallback(async () => {
+    try {
+      await Share.share({
+        title: item.name,
+        message: `Confira ${item.name}${item.address ? ` em ${item.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${item.id}`,
+      });
+    } catch {}
+  }, [item.id, item.name, item.address]);
+
+  return (
+    <TouchableOpacity onPress={onShare} style={styles.shareInlineButton}>
+      <AntDesign name="sharealt" size={16} color="#555" />
+    </TouchableOpacity>
+  );
+});
+
+const GridCard = memo(function GridCard({
+  item,
+  liked,
+  count,
+  onPressCard,
+  onPressLike,
+  acontecendo,
+  chegando,
+  esperado,
+  acessado,
+}: {
+  item: Barbershop;
+  liked: boolean;
+  count: number;
+  onPressCard: (id: string) => void;
+  onPressLike: (id: string) => void;
+  acontecendo: boolean;
+  chegando: boolean;
+  esperado: boolean;
+  acessado: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.9}
+      onPress={() => onPressCard(item.id)}
+    >
+      <View style={styles.imageWrapper}>
+        <ExpoImage
+          source={{ uri: toSafeUri(item.imageUrl) }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="disk"
+          transition={100}
+        />
+
+        <BadgeStack
+          acontecendo={acontecendo}
+          chegando={chegando}
+          esperado={esperado}
+          acessado={acessado}
+        />
+
+        <TouchableOpacity style={styles.likeButton} onPress={() => onPressLike(item.id)}>
+          <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
+          <Text style={styles.likeText}>{count}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+        <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
+        {!!item.address && <Text numberOfLines={2} style={styles.address}>{item.address}</Text>}
+
+        <View style={styles.footerRow}>
+          <Text style={styles.cta}>Saiba Mais</Text>
+          <ShareBtn item={item} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+/* ===================== Principal ===================== */
 export default function EventosGrid({
   barbershops,
   isLoggedIn,
@@ -87,22 +180,16 @@ export default function EventosGrid({
   onToggleLike,
 }: Props) {
   const router = useRouter();
-
-  // apenas aprovados
   const aprovados = useMemo(() => barbershops.filter((b) => b.aprovado), [barbershops]);
 
   const [likesMap, setLikesMap] = useState<Record<string, { liked: boolean; count: number }>>({});
   const [showLoginModal, setShowLoginModal] = useState(false);
-
-  // highlights (mais curtido / mais acessado)
   const [mostLikedId, setMostLikedId] = useState<string | null>(null);
   const [mostAccessedId, setMostAccessedId] = useState<string | null>(null);
 
   useEffect(() => {
     const map: Record<string, { liked: boolean; count: number }> = {};
-    aprovados.forEach((e) => {
-      map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
-    });
+    aprovados.forEach((e) => (map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 }));
     setLikesMap(map);
   }, [aprovados]);
 
@@ -116,26 +203,18 @@ export default function EventosGrid({
         setMostAccessedId(res.mostAccessedId ?? null);
       } catch {}
     })();
-    return () => {
-      mounted = false;
-    };
+  return () => { mounted = false; };
   }, []);
 
   const toggleLikeApi = useCallback(
     async (id: string) => {
       const prev = likesMap[id] ?? { liked: false, count: 0 };
-      const optimistic = {
-        liked: !prev.liked,
-        count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1,
-      };
+      const optimistic = { liked: !prev.liked, count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1 };
       setLikesMap((m) => ({ ...m, [id]: optimistic }));
       try {
         const res = await apiHelpers.likeEvent(id);
-        setLikesMap((m) => ({
-          ...m,
-          [id]: { liked: !!res.liked, count: Number(res.count ?? 0) },
-        }));
-      } catch (err) {
+        setLikesMap((m) => ({ ...m, [id]: { liked: !!res.liked, count: Number(res.count ?? 0) } }));
+      } catch {
         setLikesMap((m) => ({ ...m, [id]: prev }));
         Toast.show({ type: "error", text1: "Não foi possível curtir agora.", position: "bottom" });
       }
@@ -143,30 +222,21 @@ export default function EventosGrid({
     [likesMap]
   );
 
-  const handlePressLike = (id: string) => {
+  const handlePressLike = useCallback((id: string) => {
     if (!isLoggedIn) {
-      Toast.show({
-        type: "info",
-        text1: "Você precisa estar logado",
-        text2: "Entre na sua conta.",
-        position: "bottom",
-        visibilityTime: 3000,
-      });
+      Toast.show({ type: "info", text1: "Você precisa estar logado", text2: "Entre na sua conta.", position: "bottom", visibilityTime: 3000 });
       setShowLoginModal(true);
       return;
     }
     if (onToggleLike) return onToggleLike(id);
     toggleLikeApi(id);
-  };
+  }, [isLoggedIn, onToggleLike, toggleLikeApi]);
 
-  const shareEvent = async (e: Barbershop) => {
-    try {
-      await Share.share({
-        title: e.name,
-        message: `Confira ${e.name}${e.address ? ` em ${e.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${e.id}`,
-      });
-    } catch {}
-  };
+  const onPressCard = useCallback((id: string) => {
+    router.push({ pathname: "/barbershop/[id]", params: { id } });
+  }, [router]);
+
+  const keyExtractor = useCallback((item: Barbershop) => item.id, []);
 
   if (aprovados.length === 0) {
     return <Text style={styles.emptyText}>Nenhum evento encontrado.</Text>;
@@ -174,75 +244,41 @@ export default function EventosGrid({
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <FlashList
         data={aprovados}
-        keyExtractor={(item) => item.id}
         horizontal
+        keyExtractor={keyExtractor}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingLeft: CONTAINER_PAD_H, paddingRight: CONTAINER_PAD_H }}
         ItemSeparatorComponent={() => <View style={{ width: H_GAP }} />}
         renderItem={({ item }) => {
           const { liked, count } = likesMap[item.id] || { liked: false, count: 0 };
-
           const dias = daysUntil(item.startDate);
-          const showEstaChegando = dias !== null && dias >= 0 && dias <= 5;
-          const showAcontecendo = isHappeningNow(item.startDate, item.endDate);
-          const showMaisEsperado = mostLikedId === item.id;
-          const showMaisAcessado = mostAccessedId === item.id;
+          const chegando = dias !== null && dias >= 0 && dias <= 5;
+          const acontecendo = isHappeningNow(item.startDate, item.endDate);
+          const esperado = mostLikedId === item.id;
+          const acessado = mostAccessedId === item.id;
 
           return (
-            <TouchableOpacity
-              style={styles.card}
-              activeOpacity={0.9}
-              onPress={() =>
-                router.push({ pathname: "/barbershop/[id]", params: { id: item.id } })
-              }
-            >
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: toSafeUri(item.imageUrl) }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-
-                {(showAcontecendo || showMaisEsperado || showEstaChegando || showMaisAcessado) && (
-                  <View style={styles.badgeStack}>
-                    {showAcontecendo && <EventBadge type="acontecendo" />}
-                    {showEstaChegando && <EventBadge type="estaChegando" />}
-                    {showMaisEsperado && <EventBadge type="maisEsperado" />}
-                    {showMaisAcessado && <EventBadge type="maisAcessado" />}
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.likeButton}
-                  onPress={() => handlePressLike(item.id)}
-                >
-                  <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
-                  <Text style={styles.likeText}>{count}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.content}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {item.name}
-                </Text>
-                {!!item.address && (
-                  <Text numberOfLines={2} style={styles.address}>
-                    {item.address}
-                  </Text>
-                )}
-
-                <View style={styles.footerRow}>
-                  <Text style={styles.cta}>Saiba Mais</Text>
-                  <TouchableOpacity onPress={() => shareEvent(item)} style={styles.shareInlineButton}>
-                    <AntDesign name="sharealt" size={16} color="#555" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <GridCard
+              item={item}
+              liked={liked}
+              count={count}
+              onPressCard={onPressCard}
+              onPressLike={handlePressLike}
+              acontecendo={acontecendo}
+              chegando={chegando}
+              esperado={esperado}
+              acessado={acessado}
+            />
           );
         }}
+        // Se sua versão da FlashList não tipa 'size' no layout, mantenha o cast em 'any'
+         
+        overrideItemLayout={(layout: any) => { layout.size = CARD_WIDTH; }}
+        snapToInterval={CARD_WIDTH + H_GAP}
+        decelerationRate="fast"
+        snapToAlignment="start"
       />
 
       {/* Modal de login */}
@@ -253,13 +289,10 @@ export default function EventosGrid({
             <Text style={styles.modalSubtitle}>Entre com sua conta Google para continuar</Text>
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => {
-                setShowLoginModal(false);
-                onLoginPress();
-              }}
+              onPress={() => { setShowLoginModal(false); onLoginPress(); }}
             >
-              <Image
-                source={require("../assets/images/google.png")}
+              <RNImage
+                source={require("@/assets/images/google.png")}
                 style={{ width: 20, height: 20, marginRight: 10 }}
               />
               <Text style={styles.loginButtonText}>Entrar com Google</Text>
@@ -273,11 +306,11 @@ export default function EventosGrid({
 
 /* ===================== Estilos ===================== */
 const styles = StyleSheet.create({
-  container: { paddingTop: 16 }, // padding horizontal vem do contentContainerStyle
+  container: { paddingTop: 16 },
   emptyText: { textAlign: "center", color: "#999", marginTop: 40, fontSize: 14 },
 
   card: {
-    width: CARD_WIDTH,                 // 👈 mesmo tamanho do EventFixCarousel
+    width: CARD_WIDTH,
     borderRadius: 12,
     backgroundColor: "#fff",
     overflow: "hidden",
@@ -293,14 +326,15 @@ const styles = StyleSheet.create({
 
   imageWrapper: {
     width: "100%",
-    aspectRatio: 16 / 9,
+    height: IMAGE_HEIGHT, // evita custo do aspectRatio durante scroll
     overflow: "hidden",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   image: { width: "100%", height: "100%" },
 
-  badgeStack: { position: "absolute", left: 8, top: 8, gap: 6 },
+  badgeStack: { position: "absolute", left: 8, top: 8 },
+  badgeItem: { marginBottom: 6 },
 
   likeButton: {
     position: "absolute",
@@ -327,12 +361,7 @@ const styles = StyleSheet.create({
   name: { fontWeight: "800", fontSize: 16, color: "#0F172A" },
   address: { fontSize: 12, color: "#6B7280", marginTop: 4, minHeight: 32 },
 
-  footerRow: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+  footerRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cta: { fontSize: 12, color: "#059669", fontWeight: "700" },
   shareInlineButton: {
     padding: 6,

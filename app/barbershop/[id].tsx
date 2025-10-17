@@ -1,11 +1,11 @@
 // app/(events)/[id]/EventDetailsScreen.tsx
 // Expo Router screen that mirrors your Next.js event details page
 
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { Calendar, ChevronLeft, Clock, MapPin, Menu } from "lucide-react-native"
-import React, { useEffect, useMemo, useState } from "react"
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Calendar, ChevronLeft, Clock, MapPin, Menu } from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -18,195 +18,193 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
-} from "react-native"
-import Animated, { SlideInRight, SlideOutRight } from "react-native-reanimated"
-import RenderHTML from "react-native-render-html"
+} from "react-native";
+import Animated, { SlideInRight, SlideOutRight } from "react-native-reanimated";
+import RenderHTML from "react-native-render-html";
 
-import Banner from "@/components/Banner"
-import Footer from "@/components/footer"
-import MapLocation from "@/components/MapLocation"
-import SidebarSheet from "@/components/SidebarSheet"
-import { useMenu } from "@/context/MenuContext"
-import { useBanners } from "@/hooks/useBanners"
+import Banner from "@/components/Banner";
+import Footer from "@/components/footer";
+import MapLocation from "@/components/MapLocation";
+import SidebarSheet from "@/components/SidebarSheet";
+import { useMenu } from "@/context/MenuContext";
+import { useBanners } from "@/hooks/useBanners";
 
 /* =====================
    Types
    ===================== */
 export type Event = {
-  id: string
-  name: string
-  address: string
-  imageUrl: string
-  description: string
-  startDate: string
-  endDate: string
-  ticketsUrl?: string
-  websiteUrl?: string
-  producer?: string
-  producerDescription?: string
+  id: string;
+  name: string;
+  address: string;
+  imageUrl: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  ticketsUrl?: string;
+  websiteUrl?: string;
+  producer?: string;
+  producerDescription?: string;
   // optional location shapes that may come from the API
-  lat?: number | string
-  lng?: number | string
-  latitude?: number | string
-  longitude?: number | string
+  lat?: number | string;
+  lng?: number | string;
+  latitude?: number | string;
+  longitude?: number | string;
   location?: {
-    lat?: number | string
-    lng?: number | string
-    lon?: number | string
-  }
-}
+    lat?: number | string;
+    lng?: number | string;
+    lon?: number | string;
+  };
+};
 
 /* =====================
    Helpers
    ===================== */
 function toNum(v: unknown): number | null {
-  if (typeof v === "number" && Number.isFinite(v)) return v
+  if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
-    const n = Number(v)
-    if (Number.isFinite(n)) return n
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
   }
-  return null
+  return null;
 }
 
 function extractCoords(e: Event | null): { lat: number; lng: number } | null {
-  if (!e) return null
+  if (!e) return null;
   const lat = [toNum(e.lat), toNum(e.latitude), toNum(e.location?.lat)].find(
-    (v): v is number => v !== null,
-  )
+    (v): v is number => v !== null
+  );
   const lng = [
     toNum(e.lng),
     toNum(e.longitude),
     toNum(e.location?.lng),
     toNum(e.location?.lon),
-  ].find((v): v is number => v !== null)
-  if (lat != null && lng != null) return { lat, lng }
-  return null
+  ].find((v): v is number => v !== null);
+  if (lat != null && lng != null) return { lat, lng };
+  return null;
 }
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      address,
-    )}&limit=1&countrycodes=br`
+      address
+    )}&limit=1&countrycodes=br`;
     const r = await fetch(url, {
       headers: {
         "User-Agent": "OndeTemEventoRio/1.0 (contato@ondetemeventorio.com.br)",
         "Accept-Language": "pt-BR",
       },
-    })
-    if (!r.ok) return null
-    const arr: { lat: string; lon: string }[] = await r.json()
-    if (!Array.isArray(arr) || arr.length === 0) return null
-    const lat = Number(arr[0].lat)
-    const lng = Number(arr[0].lon)
-    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
-    return null
+    });
+    if (!r.ok) return null;
+    const arr: { lat: string; lon: string }[] = await r.json();
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    const lat = Number(arr[0].lat);
+    const lng = Number(arr[0].lon);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    return null;
   } catch {
-    return null
+    return null;
   }
 }
 
 /* =====================
    Screen
    ===================== */
-export default function EventDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const { openMenu, closeMenu, isOpen } = useMenu()
-  const { width: SCREEN_WIDTH } = Dimensions.get("window")
-  const { width } = useWindowDimensions()
+const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
-  const [event, setEvent] = useState<Event | null>(null)
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const { banners, loading: loadingBanners } = useBanners()
+export default function EventDetailsScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { openMenu, closeMenu, isOpen } = useMenu();
+  const { width: SCREEN_WIDTH } = Dimensions.get("window");
+  const { width } = useWindowDimensions();
+
+  const [event, setEvent] = useState<Event | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { banners, loading: loadingBanners } = useBanners();
 
   useEffect(() => {
-    if (!id) return
-    void fetchEvent(String(id))
-  }, [id])
+    if (!id) return;
+    void fetchEvent(String(id));
+  }, [id]);
 
   const fetchEvent = async (eventId: string) => {
     try {
-      setLoading(true)
-      const res = await fetch(
-        `https://ondetemeventorio.vercel.app/api/events/${eventId}`,
-      )
-      if (!res.ok) throw new Error("Falha ao carregar o evento")
-      const data: Event = await res.json()
-      setEvent(data)
+      setLoading(true);
+      const res = await fetch(`https://ondetemeventorio.vercel.app/api/events/${eventId}`);
+      if (!res.ok) throw new Error("Falha ao carregar o evento");
+      const data: Event = await res.json();
+      setEvent(data);
 
-      const direct = extractCoords(data)
+      const direct = extractCoords(data);
       if (direct) {
-        setCoords(direct)
+        setCoords(direct);
       } else if (data.address) {
-        const viaGeo = await geocodeAddress(data.address)
-        if (viaGeo) setCoords(viaGeo)
+        const viaGeo = await geocodeAddress(data.address);
+        if (viaGeo) setCoords(viaGeo);
       }
     } catch (e) {
-      console.error("Erro ao buscar evento:", e)
-      setEvent(null)
+      console.error("Erro ao buscar evento:", e);
+      setEvent(null);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const startText = useMemo(() => {
-    if (!event?.startDate) return null
+    if (!event?.startDate) return null;
     try {
       return format(new Date(event.startDate), "dd 'de' MMMM 'às' HH:mm", {
         locale: ptBR,
-      })
+      });
     } catch {
-      return null
+      return null;
     }
-  }, [event?.startDate])
+  }, [event?.startDate]);
 
   const endText = useMemo(() => {
-    if (!event?.endDate) return null
+    if (!event?.endDate) return null;
     try {
       return format(new Date(event.endDate), "dd 'de' MMMM 'às' HH:mm", {
         locale: ptBR,
-      })
+      });
     } catch {
-      return null
+      return null;
     }
-  }, [event?.endDate])
+  }, [event?.endDate]);
 
   /* ===== Guards ===== */
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: BG }]}>
         <ActivityIndicator size="large" color="#c9a261" />
       </View>
-    )
+    );
   }
 
   if (!event) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: BG }]}>
         <Text style={styles.errorText}>Evento não encontrado.</Text>
       </View>
-    )
+    );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: BG }}>
       <FlatList
+        style={{ overflow: "visible", backgroundColor: BG }}
+        contentContainerStyle={{ overflow: "visible", backgroundColor: BG }}
         data={[{ key: "content" }]}
         keyExtractor={(item) => item.key}
-        renderItem={null}
+        renderItem={() => null}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
             {/* Header Banner */}
             <View style={styles.bannerContainer}>
               {!!event.imageUrl && (
-                <Image
-                  source={{ uri: event.imageUrl }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: event.imageUrl }} style={styles.image} resizeMode="cover" />
               )}
 
               <TouchableOpacity
@@ -281,7 +279,7 @@ export default function EventDetailsScreen() {
 
               {/* Map */}
               {coords && (
-                <View style={{ marginTop: 0, paddingHorizontal: 16 }}>
+                <View style={{ marginTop: 0, paddingHorizontal: 16, overflow: "visible" }}>
                   <MapLocation lat={coords.lat} lon={coords.lng} name={event.name} />
                 </View>
               )}
@@ -297,9 +295,7 @@ export default function EventDetailsScreen() {
                 <>
                   <Text style={styles.sectionTitle}>Produtora do Evento</Text>
                   {!!event.producer && (
-                    <Text style={[styles.description, { fontWeight: "600" }]}>
-                      {event.producer}
-                    </Text>
+                    <Text style={[styles.description, { fontWeight: "600" }]}>{event.producer}</Text>
                   )}
                   {!!event.producerDescription && (
                     <RenderHTML
@@ -319,7 +315,7 @@ export default function EventDetailsScreen() {
           </>
         }
         ListFooterComponent={
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 20, backgroundColor: BG }}>
             <Footer />
           </View>
         }
@@ -338,7 +334,7 @@ export default function EventDetailsScreen() {
         </Pressable>
       )}
     </View>
-  )
+  );
 }
 
 /* =====================
@@ -348,7 +344,7 @@ const styles = StyleSheet.create({
   bannerContainer: {
     width: "100%",
     aspectRatio: 16 / 9,
-    backgroundColor: "#fff",
+    backgroundColor: "#fff", // mantém “card” do banner em branco
     position: "relative",
   },
   image: { width: "100%", height: "100%" },
@@ -414,13 +410,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#000",
+    // backgroundColor aplicado dinamicamente para BG
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    // backgroundColor aplicado dinamicamente para BG
   },
   errorText: { color: "red", textAlign: "center" },
   overlay: {
@@ -446,4 +443,4 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1000,
   },
-})
+});
