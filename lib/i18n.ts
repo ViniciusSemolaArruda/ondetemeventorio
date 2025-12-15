@@ -1,3 +1,4 @@
+
 // app/_lib/i18n.ts (ou onde você mantém o dicionário)
 export type Lang = "pt" | "en" | "es"
 
@@ -25,6 +26,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_rock: "Rock",
     cat_blues: "Blues",
     cat_jazz: "Jazz",
+    cat_sertanejo: "Sertanejo",
     cat_chorinho: "Chorinho",
     cat_festivais: "Festivais",
     cat_festas: "Festas",
@@ -32,15 +34,19 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_bares: "Bares",
     cat_restaurantes: "Restaurantes",
     cat_religiao: "Religiões",
-    cat_cultural: "Cultural",
+    cat_cultural: "Cinema",
     cat_esportes: "Esportes",
     cat_gastronomia: "Gastronomia",
     cat_feiras: "Feiras",
+    cat_nautica: "Náutica",
     cat_seminarios: "Seminários",
     cat_simposios: "Simpósios",
     cat_agro: "Agronegócio",
     cat_ambiente: "Meio Ambiente",
     cat_boate: "Boates",
+    cat_kids: "Kids",
+    cat_charme: "Charme",
+    cat_pets: "Pets",
     cat_teatro: "Teatro",
     cat_standup: "Stand Up Comedy",
     cat_familia: "Família",
@@ -48,7 +54,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     quick_title: "Busca Rápida",
     quick_view_all: "Ver todas",
 
-    
+    map_cluster_events: "Eventos neste local",
 
     welcome_title: "Bem-vindo ao nosso App!",
     welcome_sub:
@@ -426,7 +432,9 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     "Em caso de dúvidas sobre esta Política de Cookies, entre em contato pelo e-mail: ",
   cookies_contact_email: "contato@capadociaproducoes.com",
   cookies_contact_suffix: " ou pelo suporte através do chat do app.",
-  cookies_last_updated: "Setembro de 2025"
+  cookies_last_updated: "Setembro de 2025",
+  view_map_title: "Ver mapa de eventos",
+    view_map_sub: "Descubra eventos por região e bairro",
   
     },
 
@@ -453,6 +461,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_rock: "Rock",
     cat_blues: "Blues",
     cat_jazz: "Jazz",
+    cat_sertanejo: "Sertanejo",
     cat_chorinho: "Choro",
     cat_festivais: "Festivals",
     cat_festas: "Parties",
@@ -460,21 +469,27 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_bares: "Bars",
     cat_restaurantes: "Restaurants",
     cat_religiao: "Religions",
-    cat_cultural: "Cultural",
+    cat_cultural: "Cinema",
     cat_esportes: "Sports",
     cat_gastronomia: "Gastronomy",
     cat_feiras: "Fairs",
+    cat_nautica: "Nautical",
     cat_seminarios: "Seminars",
     cat_simposios: "Symposiums",
     cat_agro: "Agribusiness",
     cat_ambiente: "Environment",
     cat_boate: "Nightclubs",
+    cat_kids: "Kids",
+    cat_charme: "Charme",
+    cat_pets: "Pets",
     cat_teatro: "Theater",
     cat_standup: "Stand Up Comedy",
     cat_familia: "Family",
 
     quick_title: "Quick Search",
     quick_view_all: "See all",
+
+    map_cluster_events: "Events in this location",
 
     welcome_title: "Welcome to our App!",
     welcome_sub:
@@ -847,7 +862,9 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     "If you have questions about this Cookie Policy, contact us at: ",
   cookies_contact_email: "contato@capadociaproducoes.com",
   cookies_contact_suffix: " or via in-app chat support.",
-  cookies_last_updated: "September 2025"
+  cookies_last_updated: "September 2025",
+  view_map_title: "View event map",
+    view_map_sub: "Explore events by region and neighborhood",
   
 
     },
@@ -875,6 +892,7 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_rock: "Rock",
     cat_blues: "Blues",
     cat_jazz: "Jazz",
+    cat_sertanejo: "Sertanejo",
     cat_chorinho: "Chorinho",
     cat_festivais: "Festivales",
     cat_festas: "Fiestas",
@@ -882,15 +900,19 @@ export const dictionaries: Record<Lang, Record<string, string>> = {
     cat_bares: "Bares",
     cat_restaurantes: "Restaurantes",
     cat_religiao: "Religiones",
-    cat_cultural: "Cultural",
+    cat_cultural: "Cine",
     cat_esportes: "Deportes",
     cat_gastronomia: "Gastronomía",
     cat_feiras: "Ferias",
+    cat_nautica: "Náutica",
     cat_seminarios: "Seminarios",
     cat_simposios: "Simposios",
     cat_agro: "Agroindustria",
     cat_ambiente: "Medio Ambiente",
     cat_boate: "Discotecas",
+    cat_kids: "Kids",
+    cat_charme: "Charme",
+    cat_pets: "Mascotas",
     cat_teatro: "Teatro",
 cat_standup: "Comedia Stand Up",
     cat_familia: "Familia",
@@ -898,6 +920,7 @@ cat_standup: "Comedia Stand Up",
     quick_title: "Búsqueda Rápida",
     quick_view_all: "Ver todas",
 
+    map_cluster_events: "Eventos en esta ubicación",
     welcome_title: "¡Bienvenido a nuestra App!",
     welcome_sub:
       "Para mejorar tu experiencia, selecciona los estilos de eventos que más te gustan:",
@@ -1274,6 +1297,8 @@ cat_standup: "Comedia Stand Up",
     "Si tienes dudas sobre esta Política de Cookies, contáctanos al correo: ",
   cookies_contact_email: "contato@capadociaproducoes.com",
   cookies_contact_suffix: " o mediante el chat de soporte en la app.",
-  cookies_last_updated: "Septiembre de 2025"
+  cookies_last_updated: "Septiembre de 2025",
+   view_map_title: "Ver mapa de eventos",
+    view_map_sub: "Descubre eventos por región y barrio",
     },
 }

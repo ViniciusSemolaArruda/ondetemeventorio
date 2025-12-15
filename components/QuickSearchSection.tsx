@@ -51,26 +51,42 @@ const QUICK_ITEM_W = 132; // largura "constante" do item
 =========================== */
 const ICONS: Record<string, any> = {
   "/musica(1).png": require("../assets/icons/musica(1).png"),
+
   "/show.png": require("../assets/icons/show.png"),
   "/ano-novo.png": require("../assets/icons/ano-novo.png"),
   "/boate.png": require("../assets/icons/boate.png"),
+
   "/parque-tematico.png": require("../assets/icons/parque-tematico.png"),
   "/bar.png": require("../assets/icons/bar.png"),
+
+  "/chefe-de-cozinha.png": require("../assets/icons/chefe-de-cozinha.png"),
   "/restaurante.png": require("../assets/icons/restaurante.png"),
+
   "/religion.png": require("../assets/icons/religion.png"),
   "/claquete.png": require("../assets/icons/claquete.png"),
   "/teatro.png": require("../assets/icons/teatro.png"),
+
   "/contorno-de-microfone-condensador-profissional.png":
     require("../assets/icons/contorno-de-microfone-condensador-profissional.png"),
+
   "/trabalho-em-equipe.png": require("../assets/icons/trabalho-em-equipe.png"),
+
+  // ✅ novos
+  "/alfabeto.png": require("../assets/icons/alfabeto.png"),
+  "/pata.png": require("../assets/icons/pata.png"),
+
   "/esporte.png": require("../assets/icons/esporte.png"),
-  "/chefe-de-cozinha.png": require("../assets/icons/chefe-de-cozinha.png"),
+
   "/barraca-de-comida.png": require("../assets/icons/barraca-de-comida.png"),
+  "/ancora.png": require("../assets/icons/ancora.png"),
   "/seminario.png": require("../assets/icons/seminario.png"),
   "/simposio.png": require("../assets/icons/simposio.png"),
+
   "/planeta-terra.png": require("../assets/icons/planeta-terra.png"),
   "/agricultura.png": require("../assets/icons/agricultura.png"),
 };
+
+
 
 const resolveIcon = (u: string): ImageSourcePropType => {
   const local = ICONS[u];

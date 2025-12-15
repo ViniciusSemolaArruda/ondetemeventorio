@@ -11,17 +11,53 @@ type Props = {
   selected: string[];                 // mantém compat para quem usa múltipla
   onChange: (next: string[]) => void;
   title?: string;
-  single?: boolean;                   // << novo: modo seleção única
+  single?: boolean;                   // modo seleção única
 };
 
 const BASE_CATEGORIES = [
-  "Cinema","Esportes","Gastronomia","Carnaval","Rock","Religiões","MPB","Chorinho","Forró",
-  "Funk","Passinho","Feiras","Simpósios","Festivais","Seminários","Rodas de Samba","Bossa Nova",
-  "Blues","Jazz","Eletrônica","Festas","Bares","Restaurantes","Parques","Agronegócio",
-  "Meio Ambiente","Teatro","Família","Stand Up Comedy",
+  "Cinema",
+  "Esportes",
+  "Gastronomia",
+  "Carnaval",
+  "Rock",
+  "Religiões",
+  "MPB",
+  "Chorinho",
+  "Forró",
+  "Funk",
+  "Passinho",
+  "Feiras",
+  "Simpósios",
+  "Festivais",
+  "Seminários",
+  "Rodas de Samba",
+  "Bossa Nova",
+  "Blues",
+  "Jazz",
+  "Eletrônica",
+  "Festas",
+  "Bares",
+  "Restaurantes",
+  "Parques",
+  "Agronegócio",
+  "Meio Ambiente",
+  "Teatro",
+  "Família",
+  "Stand Up Comedy",
+  "Náutica",
+  "Sertanejo",
+  "Boate",
+  "Kids",
+  "Pets",
+  "Charme",
 ];
 
-function CategoriesSection({ selected, onChange, title = "Classifique seu evento", single = false }: Props) {
+function CategoriesSection({
+  selected,
+  onChange,
+  title = "Classifique seu evento",
+  single = false,
+}: Props) {
   const data = useMemo(() => [...BASE_CATEGORIES].sort(), []);
 
   const toggle = (cat: string) => {
@@ -31,7 +67,16 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
       onChange(isSelected ? [] : [cat]);
     } else {
       const isSelected = selected.includes(cat);
-      const next = isSelected ? selected.filter((c) => c !== cat) : [...selected, cat];
+
+      // limite de 3 categorias: se já tiver 3 e está tentando adicionar mais uma, ignora
+      if (!isSelected && selected.length >= 3) {
+        return;
+      }
+
+      const next = isSelected
+        ? selected.filter((c) => c !== cat)
+        : [...selected, cat];
+
       onChange(next);
     }
   };
@@ -57,6 +102,17 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{title}</Text>
+
+      {/* Aviso de até 3 categorias */}
+      {!single && (
+        <Text style={styles.helperText}>
+          Atenção: para fins de organização e exibição nas buscas, este
+          formulário permite a seleção de até 3 categorias para o mesmo evento.
+          Caso ele se enquadre em mais de um tipo, escolha as categorias que
+          melhor representem o objetivo central.
+        </Text>
+      )}
+
       <FlatList
         data={data}
         keyExtractor={(c) => c}
@@ -72,7 +128,17 @@ function CategoriesSection({ selected, onChange, title = "Classifique seu evento
 
 const styles = StyleSheet.create({
   wrapper: { marginBottom: 24 },
-  label: { marginBottom: 8, fontSize: 14, fontWeight: "600", color: "#374151" },
+  label: {
+    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
   listContent: { gap: 8 },
   column: { gap: 8 },
   itemRow: {

@@ -1,34 +1,29 @@
 // app/_layout.tsx
 import { Slot, usePathname, useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
-import { Dimensions, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import AnimatedRN, { SlideInRight, SlideOutRight } from "react-native-reanimated";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 import SidebarSheet from "@/components/SidebarSheet";
 import { I18nProvider } from "@/context/I18nContext";
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { MenuProvider, useMenu } from "../context/MenuContext";
 
-// ✅ importa normalmente o MapView (sem named import do enableLatestRenderer)
-import MapView from "react-native-maps";
+const ORANGE = "#FF7400";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-/** Habilita o renderer mais novo do Google Maps no Android, com fallback entre versões */
-function enableLatestRendererIfAvailable() {
+/** Habilita o renderer mais novo do Google Maps no Android, se existir na versão instalada */
+async function enableLatestRendererIfAvailable() {
   try {
-    // 1) tenta pegar pelo require (caso exista como export nomeado)
-    const maps = require("react-native-maps");
+    const maps = await import("react-native-maps");
     const fn =
-      maps?.enableLatestRenderer ??
-      maps?.default?.enableLatestRenderer ??     // algumas builds expõem no default
-      (MapView as any)?.enableLatestRenderer;    // outras no próprio MapView
-
+      (maps as any)?.enableLatestRenderer ??
+      (maps as any)?.default?.enableLatestRenderer ??
+      (maps as any)?.MapView?.enableLatestRenderer;
     if (typeof fn === "function") fn();
   } catch {
-    // se não existir na sua versão, apenas ignore
+    // versão antiga do pacote: ignore
   }
 }
 
@@ -43,8 +38,7 @@ function Gate() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (pathname === "/") return;             // root
-    if (pathname === "/SplashScreen") return; // splash
+    if (pathname === "/" || pathname === "/SplashScreen") return;
 
     if (pathname === "/welcome" && user && user.preferencesSet === true) {
       if (redirectedRef.current) return;
@@ -63,7 +57,6 @@ function MenuOverlay() {
   const { isOpen, closeMenu } = useMenu();
   const pathname = usePathname();
 
-  // Fecha o menu ao trocar de rota
   useEffect(() => {
     if (isOpen) closeMenu();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,7 +66,6 @@ function MenuOverlay() {
 
   return (
     <>
-      {/* overlay só existe quando o menu está aberto */}
       <Pressable
         style={styles.overlay}
         onPress={closeMenu}
@@ -106,7 +98,6 @@ function GlobalToast() {
 }
 
 export default function RootLayout() {
-  // ⚙️ Habilita o renderer novo do Google Maps no Android (evita bugs do Callout)
   useEffect(() => {
     if (Platform.OS === "android") {
       enableLatestRendererIfAvailable();
@@ -114,13 +105,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <I18nProvider>
-      <AuthProvider>
-        <MenuProvider>
-          <SafeAreaProvider>
-            {/* Top não precisa receber toques */}
+    <SafeAreaProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <MenuProvider>
+            {/* Top no mesmo laranja da marca */}
             <SafeAreaView edges={["top"]} style={styles.safeTop} pointerEvents="none" />
-            {/* Bottom segura o app; sem overflow pra não clipear Callout do mapa */}
+            {/* Bottom também laranja, segurando o app */}
             <SafeAreaView edges={["left", "right", "bottom"]} style={styles.safeBottom}>
               <View style={styles.root}>
                 <Gate />
@@ -128,23 +119,26 @@ export default function RootLayout() {
               </View>
             </SafeAreaView>
             <GlobalToast />
-          </SafeAreaProvider>
-        </MenuProvider>
-      </AuthProvider>
-    </I18nProvider>
+          </MenuProvider>
+        </AuthProvider>
+      </I18nProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safeTop: { backgroundColor: "#fff" },
+  safeTop: {
+    backgroundColor: ORANGE,
+  },
   safeBottom: {
     flex: 1,
-    backgroundColor: "#fff",
-    overflow: "visible", // 👈 não clipe o Callout
+    backgroundColor: ORANGE,
+    overflow: "visible", // não clipe o Callout
   },
   root: {
     flex: 1,
-    overflow: "visible", // 👈 idem
+    backgroundColor: ORANGE,
+    overflow: "visible",
   },
   overlay: {
     position: "absolute",
@@ -155,7 +149,11 @@ const styles = StyleSheet.create({
   sidebar: {
     position: "absolute",
     top: 0, bottom: 0, right: 0,
-    width: SCREEN_WIDTH * 0.8,
+    width: Math.round(
+      (global as any)?.window?.innerWidth
+        ? (global as any).window.innerWidth * 0.8
+        : 320
+    ),
     backgroundColor: "#fff",
     padding: 20,
     shadowColor: "#000",

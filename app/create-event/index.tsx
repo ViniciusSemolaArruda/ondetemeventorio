@@ -24,19 +24,29 @@ import {
 } from "react-native";
 import Toast from "react-native-toast-message";
 
-// helpers de data/hora com timezone local
-const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
-const localTzOffset = () => {
-  const mins = -new Date().getTimezoneOffset();
-  const sign = mins >= 0 ? "+" : "-";
-  const abs = Math.abs(mins);
-  const hh = pad(Math.floor(abs / 60));
-  const mm = pad(abs % 60);
-  const finalSign = sign === "+" ? "-" : "+";
-  return `${finalSign}${hh}:${mm}`;
+/* ==========================
+   Helpers de data/hora - fixa RJ (UTC-3)
+   ========================== */
+
+// Converte "YYYY-MM-DD" + "HH:mm" em ISO assumindo fuso America/Sao_Paulo (UTC-3)
+const toSaoPauloIso = (dateYYYYMMDD: string, timeHHMM: string) => {
+  const [y, m, d] = dateYYYYMMDD.split("-").map((v) => parseInt(v, 10));
+  const [hh, mm] = timeHHMM.split(":").map((v) => parseInt(v, 10));
+
+  const utcDate = new Date(
+    Date.UTC(
+      y || 1970,
+      (m || 1) - 1,
+      d || 1,
+      (hh || 0) + 3, // RJ = UTC-3 → UTC = hora + 3
+      mm || 0,
+      0,
+      0,
+    ),
+  );
+
+  return utcDate.toISOString();
 };
-const withLocalOffset = (dateYYYYMMDD: string, timeHHMM: string) =>
-  `${dateYYYYMMDD}T${timeHHMM}${localTzOffset()}`;
 
 const BG = "#f2f2f2"; // fundo acinzentado solicitado
 
@@ -62,6 +72,10 @@ export default function CreateEventPage() {
   const [neighborhood, setNeighborhood] = useState("");
   const [city, setCity] = useState("Rio de Janeiro");
   const [stateUF, setStateUF] = useState("RJ");
+
+  // coordenadas vindas do AddressForm/LocationSection
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
 
   const [ticketLink, setTicketLink] = useState("");
   const [websiteLink, setWebsiteLink] = useState("");
@@ -112,7 +126,11 @@ export default function CreateEventPage() {
     }
 
     const normalizeCategory = (s: string) =>
-      s.trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase();
+      s
+        .trim()
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toUpperCase();
 
     try {
       const formData = new FormData();
@@ -145,12 +163,15 @@ export default function CreateEventPage() {
       // descrição
       formData.append("description", description ?? "");
 
-      // datas com OFFSET local (evita -3h)
-      formData.append("startDate", withLocalOffset(startDate, startTime));
-      formData.append("endDate", withLocalOffset(endDate, endTime));
-      // dica ao backend
-      formData.append("timezone", "America/Sao_Paulo");
-      formData.append("tzOffset", localTzOffset());
+      // ==========================
+      // datas/horas: força fuso RJ
+      // ==========================
+      const startIso = toSaoPauloIso(startDate, startTime);
+      const endIso = toSaoPauloIso(endDate, endTime);
+
+      formData.append("startDate", startIso);
+      formData.append("endDate", endIso);
+      // não envia timezone extra, igual ao fluxo web
 
       if (imageUrl) formData.append("imageUrl", imageUrl);
 
@@ -158,7 +179,17 @@ export default function CreateEventPage() {
       const finalAddress = locationString.trim()
         ? locationString.trim()
         : buildAddress();
-      if (finalAddress) formData.append("address", finalAddress);
+      if (finalAddress) {
+        formData.append("address", finalAddress);
+      }
+
+      // coordenadas — ESSENCIAL para não usar geocoding errado
+      if (latitude.trim()) {
+        formData.append("latitude", latitude.trim());
+      }
+      if (longitude.trim()) {
+        formData.append("longitude", longitude.trim());
+      }
 
       // links
       if (ticketLink) {
@@ -172,13 +203,19 @@ export default function CreateEventPage() {
 
       // produtor (opcional)
       if (producer) formData.append("producer", producer);
-      if (producerDescription)
+      if (producerDescription) {
         formData.append("producerDescription", producerDescription);
+      }
 
-      // categoria única (string)
+      // categoria única – envia no formato que o backend entende
       if (Array.isArray(categories) && categories.length > 0) {
         const category = normalizeCategory(String(categories[0]));
-        if (category) formData.append("category", category); // ex.: "ROCK"
+        if (category) {
+          // compat com backend web
+          formData.append("categories", category);
+          // se em algum lugar usarem 'category' ainda, mantemos isso também
+          formData.append("category", category);
+        }
       }
 
       // identificação do criador (opcional)
@@ -219,13 +256,22 @@ export default function CreateEventPage() {
     <View style={{ flex: 1, backgroundColor: BG }}>
       <Header2 />
 
-      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: BG }]} style={{ backgroundColor: BG }}>
+      <ScrollView
+        contentContainerStyle={[styles.container, { backgroundColor: BG }]}
+        style={{ backgroundColor: BG }}
+      >
         <Text style={styles.title}>Criar Novo Evento</Text>
 
         <BasicInfoSection title={title} onChangeTitle={setTitle} />
+
         <EventImageUpload onFileSelect={(url) => setImageUrl(url)} />
 
-        <CategoriesSection selected={categories} onChange={setCategories} single />
+        <CategoriesSection
+  selected={categories}
+  onChange={setCategories}
+  single={false}
+/>
+
 
         <DateTimeSection
           startDate={startDate}
@@ -252,6 +298,9 @@ export default function CreateEventPage() {
           onChangeNeighborhood={setNeighborhood}
           onChangeCity={setCity}
           onChangeState={setStateUF}
+          // recebe lat/lng do AddressForm
+          onChangeLatitude={setLatitude}
+          onChangeLongitude={setLongitude}
         />
 
         <WebsiteSection onChangeWebsiteLink={setWebsiteLink} />
@@ -283,26 +332,26 @@ export default function CreateEventPage() {
             </Text>
           </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setAcceptPrivacy((v) => !v)}
-              style={[styles.checkboxRow, { marginTop: 8 }]}
-            >
-              <View style={[styles.checkbox, acceptPrivacy && styles.checked]} />
-              <Text style={styles.checkboxLabel}>
-                Eu li e concordo com a
-                <Text
-                  style={styles.link}
-                  onPress={() =>
-                    Linking.openURL(
-                      "https://ondetemeventorio.vercel.app/privacidade"
-                    )
-                  }
-                >
-                  {" Política de Privacidade"}
-                </Text>
+          <TouchableOpacity
+            onPress={() => setAcceptPrivacy((v) => !v)}
+            style={[styles.checkboxRow, { marginTop: 8 }]}
+          >
+            <View style={[styles.checkbox, acceptPrivacy && styles.checked]} />
+            <Text style={styles.checkboxLabel}>
+              Eu li e concordo com a
+              <Text
+                style={styles.link}
+                onPress={() =>
+                  Linking.openURL(
+                    "https://ondetemeventorio.vercel.app/privacidade",
+                  )
+                }
+              >
+                {" Política de Privacidade"}
               </Text>
-            </TouchableOpacity>
-          </View>
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={styles.submitButton}
@@ -383,7 +432,10 @@ const styles = StyleSheet.create({
 
   overlay: {
     position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
     zIndex: 999,
     justifyContent: "center",
@@ -411,9 +463,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
   },
-  confirmTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10, color: "#1f2937" },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#1f2937",
+  },
   confirmText: { fontSize: 14, color: "#4b5563", marginBottom: 20 },
-  confirmButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 12 },
+  confirmButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
   button: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6 },
   cancelButton: { backgroundColor: "#ef4444" },
   confirmButton: { backgroundColor: "#16a34a" },

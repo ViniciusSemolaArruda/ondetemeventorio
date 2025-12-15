@@ -11,7 +11,9 @@ export const KEY_TO_DB = {
   cat_rock: "Rock",
   cat_blues: "Blues",
   cat_jazz: "Jazz",
+  cat_sertanejo: "Sertanejo",
   cat_chorinho: "Chorinho",
+  cat_charme: "Charme",
   cat_festivais: "Festivais",
   cat_festas: "Festas",
   cat_parques: "Parques",
@@ -22,14 +24,17 @@ export const KEY_TO_DB = {
   cat_esportes: "Esportes",
   cat_gastronomia: "Gastronomia",
   cat_feiras: "Feiras",
+  cat_nautica: "Náutica",
   cat_seminarios: "Seminários",
   cat_simposios: "Simpósios",
   cat_ambiente: "Meio Ambiente",
   cat_agro: "Agronegócio",
   cat_teatro: "Teatro",
   cat_standup: "Stand Up Comedy",
-  cat_familia: "Familia",
+  cat_familia: "Família",
   cat_boate: "Boate",
+  cat_kids: "Kids",
+  cat_pets: "Pets",
 } as const;
 
 export type KeyI18n = keyof typeof KEY_TO_DB;
@@ -56,13 +61,24 @@ export const quickSearchOptions: QuickSearchOption[] = [
   { imageUrl: "/musica(1).png", key: "cat_rock", title: "Rock" },
   { imageUrl: "/musica(1).png", key: "cat_blues", title: "Blues" },
   { imageUrl: "/musica(1).png", key: "cat_jazz", title: "Jazz" },
+  { imageUrl: "/musica(1).png", key: "cat_sertanejo", title: "Sertanejo" },
   { imageUrl: "/musica(1).png", key: "cat_chorinho", title: "Chorinho" },
+  { imageUrl: "/musica(1).png", key: "cat_charme", title: "Charme" },
   { imageUrl: "/show.png", key: "cat_festivais", title: "Festivais" },
   { imageUrl: "/ano-novo.png", key: "cat_festas", title: "Festas" },
   { imageUrl: "/boate.png", key: "cat_boate", title: "Boates" },
   { imageUrl: "/parque-tematico.png", key: "cat_parques", title: "Parques" },
   { imageUrl: "/bar.png", key: "cat_bares", title: "Bares" },
-  { imageUrl: "/restaurante.png", key: "cat_restaurantes", title: "Restaurantes" },
+  {
+    imageUrl: "/chefe-de-cozinha.png",
+    key: "cat_gastronomia",
+    title: "Gastronomia",
+  },
+  {
+    imageUrl: "/restaurante.png",
+    key: "cat_restaurantes",
+    title: "Restaurantes",
+  },
   { imageUrl: "/religion.png", key: "cat_religiao", title: "Religiões" },
   { imageUrl: "/claquete.png", key: "cat_cultural", title: "Cinema" },
   { imageUrl: "/teatro.png", key: "cat_teatro", title: "Teatro" },
@@ -72,12 +88,21 @@ export const quickSearchOptions: QuickSearchOption[] = [
     title: "Stand Up Comedy",
   },
   { imageUrl: "/trabalho-em-equipe.png", key: "cat_familia", title: "Familia" },
+  { imageUrl: "/alfabeto.png", key: "cat_kids", title: "Kids" },
+  { imageUrl: "/pata.png", key: "cat_pets", title: "Pets" },
+
+
   { imageUrl: "/esporte.png", key: "cat_esportes", title: "Esportes" },
-  { imageUrl: "/chefe-de-cozinha.png", key: "cat_gastronomia", title: "Gastronomia" },
+
   { imageUrl: "/barraca-de-comida.png", key: "cat_feiras", title: "Feiras" },
+  { imageUrl: "/ancora.png", key: "cat_nautica", title: "Náutica" },
   { imageUrl: "/seminario.png", key: "cat_seminarios", title: "Seminários" },
   { imageUrl: "/simposio.png", key: "cat_simposios", title: "Simpósios" },
-  { imageUrl: "/planeta-terra.png", key: "cat_ambiente", title: "Meio Ambiente" },
+  {
+    imageUrl: "/planeta-terra.png",
+    key: "cat_ambiente",
+    title: "Meio Ambiente",
+  },
   { imageUrl: "/agricultura.png", key: "cat_agro", title: "Agronegócio" },
 ];
 

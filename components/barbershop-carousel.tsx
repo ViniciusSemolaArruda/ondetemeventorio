@@ -45,7 +45,7 @@ type Props = {
 
 const MUSIC_CATEGORIES = new Set([
   "Carnaval","Rodas de Samba","Bossa Nova","Passinho","Funk","Eletrônica",
-  "Forró","MPB","Rock","Blues","Jazz","Chorinho",
+  "Forró","MPB","Rock","Blues","Jazz","Chorinho","Sertanejo",
 ]);
 
 function toDate(v?: string | Date | null){ if(!v) return null; const d=v instanceof Date?v:new Date(v); return isNaN(+d)?null:d;}
@@ -229,30 +229,34 @@ export default function BarbershopCarousel({
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: CarouselEvent }) => {
-      const likeInfo = likesMap[item.id] || { liked: false, count: 0 };
-      const dias = daysUntil(item.startDate);
-      const chegando = dias !== null && dias >= 0 && dias <= 5;
-      const acontecendo = isHappeningNow(item.startDate, item.endDate);
-      const esperado = mostLikedId === item.id;
-      const acessado = mostAccessedId === item.id;
+  ({ item }: { item: CarouselEvent }) => {
+    const likeInfo = likesMap[item.id] || { liked: false, count: 0 };
+    const dias = daysUntil(item.startDate);
+    const chegando = dias !== null && dias >= 0 && dias <= 5;
 
-      return (
-        <Slide
-          item={item}
-          liked={likeInfo.liked}
-          count={likeInfo.count}
-          onPressCard={onPressCard}
-          onToggleLike={toggleLike}
-          acontecendo={acontecendo}
-          chegando={chegando}
-          esperado={esperado}
-          acessado={acessado}
-        />
-      );
-    },
-    [likesMap, mostLikedId, mostAccessedId, onPressCard, toggleLike]
-  );
+    // 🔴 desativa totalmente o "acontecendo"
+    const acontecendo = false;
+
+    const esperado = mostLikedId === item.id;
+    const acessado = mostAccessedId === item.id;
+
+    return (
+      <Slide
+        item={item}
+        liked={likeInfo.liked}
+        count={likeInfo.count}
+        onPressCard={onPressCard}
+        onToggleLike={toggleLike}
+        acontecendo={acontecendo}
+        chegando={chegando}
+        esperado={esperado}
+        acessado={acessado}
+      />
+    );
+  },
+  [likesMap, mostLikedId, mostAccessedId, onPressCard, toggleLike]
+);
+
 
   if (data.length === 0) return null;
 

@@ -12,20 +12,17 @@ import {
   FlatList,
   Image,
   Linking,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
-import Animated, { SlideInRight, SlideOutRight } from "react-native-reanimated";
 import RenderHTML from "react-native-render-html";
 
 import Banner from "@/components/Banner";
 import Footer from "@/components/footer";
 import MapLocation from "@/components/MapLocation";
-import SidebarSheet from "@/components/SidebarSheet";
 import { useMenu } from "@/context/MenuContext";
 import { useBanners } from "@/hooks/useBanners";
 
@@ -60,16 +57,19 @@ export type Event = {
    Helpers
    ===================== */
 function toNum(v: unknown): number | null {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string") {
-    const n = Number(v);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+  if (v === null || v === undefined) return null;
+
+  // igual no MapRJ: troca vírgula por ponto e remove espaços
+  const s = String(v).replace(",", ".").trim();
+  if (s === "") return null;
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 }
 
 function extractCoords(e: Event | null): { lat: number; lng: number } | null {
   if (!e) return null;
+
   const lat = [toNum(e.lat), toNum(e.latitude), toNum(e.location?.lat)].find(
     (v): v is number => v !== null
   );
@@ -79,11 +79,14 @@ function extractCoords(e: Event | null): { lat: number; lng: number } | null {
     toNum(e.location?.lng),
     toNum(e.location?.lon),
   ].find((v): v is number => v !== null);
+
   if (lat != null && lng != null) return { lat, lng };
   return null;
 }
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodeAddress(
+  address: string
+): Promise<{ lat: number; lng: number } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
       address
@@ -114,7 +117,7 @@ const BG = "#f2f2f2"; // fundo acinzentado solicitado
 export default function EventDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { openMenu, closeMenu, isOpen } = useMenu();
+  const { openMenu } = useMenu(); // 👈 só usamos o openMenu agora
   const { width: SCREEN_WIDTH } = Dimensions.get("window");
   const { width } = useWindowDimensions();
 
@@ -126,12 +129,15 @@ export default function EventDetailsScreen() {
   useEffect(() => {
     if (!id) return;
     void fetchEvent(String(id));
+     
   }, [id]);
 
   const fetchEvent = async (eventId: string) => {
     try {
       setLoading(true);
-      const res = await fetch(`https://ondetemeventorio.vercel.app/api/events/${eventId}`);
+      const res = await fetch(
+        `https://ondetemeventorio.vercel.app/api/events/${eventId}`
+      );
       if (!res.ok) throw new Error("Falha ao carregar o evento");
       const data: Event = await res.json();
       setEvent(data);
@@ -204,7 +210,11 @@ export default function EventDetailsScreen() {
             {/* Header Banner */}
             <View style={styles.bannerContainer}>
               {!!event.imageUrl && (
-                <Image source={{ uri: event.imageUrl }} style={styles.image} resizeMode="cover" />
+                <Image
+                  source={{ uri: event.imageUrl }}
+                  style={styles.image}
+                  resizeMode="cover"
+                />
               )}
 
               <TouchableOpacity
@@ -245,15 +255,13 @@ export default function EventDetailsScreen() {
                       displaySeconds: b.displaySeconds ?? 3,
                     }))}
                     autoPlay
-                    showAdBadge
-                    adText="Anuncie aqui"
                   />
                 </View>
               )}
 
               <Text style={styles.sectionTitle}>Sobre o evento</Text>
               <RenderHTML
-                contentWidth={width}
+                contentWidth={width - 32} // 16 de padding de cada lado
                 source={{ html: event.description || "" }}
                 baseStyle={{
                   fontSize: 14,
@@ -279,14 +287,21 @@ export default function EventDetailsScreen() {
 
               {/* Map */}
               {coords && (
-                <View style={{ marginTop: 0, paddingHorizontal: 16, overflow: "visible" }}>
-                  <MapLocation lat={coords.lat} lon={coords.lng} name={event.name} />
+                <View style={{ marginTop: 16 }}>
+                  <MapLocation
+                    lat={coords.lat}
+                    lon={coords.lng}
+                    name={event.name}
+                    address={event.address}
+                  />
                 </View>
               )}
 
               {/* Links */}
               {event.websiteUrl && (
-                <TouchableOpacity onPress={() => Linking.openURL(event.websiteUrl!)}>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(event.websiteUrl!)}
+                >
                   <Text style={styles.link}>Site oficial</Text>
                 </TouchableOpacity>
               )}
@@ -295,11 +310,15 @@ export default function EventDetailsScreen() {
                 <>
                   <Text style={styles.sectionTitle}>Produtora do Evento</Text>
                   {!!event.producer && (
-                    <Text style={[styles.description, { fontWeight: "600" }]}>{event.producer}</Text>
+                    <Text
+                      style={[styles.description, { fontWeight: "600" }]}
+                    >
+                      {event.producer}
+                    </Text>
                   )}
                   {!!event.producerDescription && (
                     <RenderHTML
-                      contentWidth={width}
+                      contentWidth={width - 32}
                       source={{ html: event.producerDescription }}
                       baseStyle={{
                         fontSize: 14,
@@ -320,19 +339,6 @@ export default function EventDetailsScreen() {
           </View>
         }
       />
-
-      {/* Sidebar Overlay */}
-      {isOpen && (
-        <Pressable style={styles.overlay} onPress={closeMenu}>
-          <Animated.View
-            entering={SlideInRight}
-            exiting={SlideOutRight}
-            style={[styles.sidebar, { width: SCREEN_WIDTH * 0.8 }]}
-          >
-            <SidebarSheet />
-          </Animated.View>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -344,11 +350,12 @@ const styles = StyleSheet.create({
   bannerContainer: {
     width: "100%",
     aspectRatio: 16 / 9,
-    backgroundColor: "#fff", // mantém “card” do banner em branco
+    backgroundColor: "#fff",
     position: "relative",
   },
   image: { width: "100%", height: "100%" },
-  content: { paddingHorizontal: 16, paddingTop: 20 },
+
+  content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 24 },
 
   backButton: {
     position: "absolute",
@@ -372,75 +379,47 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111",
     marginBottom: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
   },
+
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
     gap: 6,
-    paddingHorizontal: 16,
     marginTop: 10,
   },
   infoText: { flex: 1, fontSize: 14, color: "#333" },
+
   sectionTitle: {
     marginTop: 16,
     fontSize: 13,
     fontWeight: "bold",
     textTransform: "uppercase",
     color: "#999",
-    paddingHorizontal: 16,
   },
   description: {
     fontSize: 14,
     color: "#444",
     marginTop: 6,
     textAlign: "justify",
-    paddingHorizontal: 16,
   },
   link: {
     color: "#FF7400",
     marginTop: 10,
     fontSize: 15,
     textDecorationLine: "underline",
-    paddingHorizontal: 16,
   },
+
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    // backgroundColor aplicado dinamicamente para BG
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    // backgroundColor aplicado dinamicamente para BG
   },
   errorText: { color: "red", textAlign: "center" },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    zIndex: 999,
-  },
-  sidebar: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-    zIndex: 1000,
-  },
 });

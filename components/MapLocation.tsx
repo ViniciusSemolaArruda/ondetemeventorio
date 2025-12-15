@@ -1,6 +1,13 @@
 // components/MapLocation.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import MapView, {
   Callout,
   Marker,
@@ -9,15 +16,29 @@ import MapView, {
   type Region,
 } from "react-native-maps";
 
-type Props = { lat: number; lon: number; name: string };
+import PinIcon from "@/assets/icons/pin-32x32.png";
+
+type Props = {
+  lat: number;
+  lon: number;
+  name: string;
+  address?: string;
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BUBBLE_MAX_W = Math.min(SCREEN_WIDTH * 0.9, 340);
 
-export default function MapLocation({ lat, lon, name }: Props) {
+// 👇 AGORA TIPADO COMO React.FC<Props>
+const MapLocation: React.FC<Props> = ({ lat, lon, name, address }) => {
   const mapRef = useRef<MapView | null>(null);
   const markerRef = useRef<MapMarker | null>(null);
   const [interactive, setInteractive] = useState(false);
+
+  const [updatePin, setUpdatePin] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setUpdatePin(false), 500);
+    return () => clearTimeout(t);
+  }, []);
 
   const initialRegion: Region = useMemo(
     () => ({
@@ -56,7 +77,10 @@ export default function MapLocation({ lat, lon, name }: Props) {
       )}
 
       {interactive && (
-        <TouchableOpacity style={styles.exitBtn} onPress={() => setInteractive(false)}>
+        <TouchableOpacity
+          style={styles.exitBtn}
+          onPress={() => setInteractive(false)}
+        >
           <Text style={styles.exitTxt}>Sair do mapa</Text>
         </TouchableOpacity>
       )}
@@ -75,23 +99,40 @@ export default function MapLocation({ lat, lon, name }: Props) {
         onPress={() => !interactive && setInteractive(true)}
       >
         <Marker
-          ref={(r) => { markerRef.current = r; }}
+          ref={(r) => {
+            markerRef.current = r;
+          }}
           coordinate={{ latitude: lat, longitude: lon }}
-          pinColor="#FF7400"
           anchor={{ x: 0.5, y: 1 }}
           calloutOffset={{ x: 0, y: 6 }}
-          tracksViewChanges={false}
+          tracksViewChanges={updatePin}
           onPress={(e) => {
             e.stopPropagation?.();
             if (!interactive) setInteractive(true);
             setTimeout(() => markerRef.current?.showCallout?.(), 80);
           }}
         >
-          {/* tooltip com “rabinho”; collapsable evita bug de tamanho 0x0 no Android */}
+          {/* PIN customizado */}
+          <Image
+            source={PinIcon}
+            style={{ width: 28, height: 32 }}
+            resizeMode="contain"
+          />
+
+          {/* Balão com nome + endereço */}
           <Callout tooltip>
             <View style={styles.tipWrap} renderToHardwareTextureAndroid>
               <View style={styles.bubble} collapsable={false}>
-                <Text style={styles.title} numberOfLines={2}>{name}</Text>
+                <Text style={styles.title} numberOfLines={2}>
+                  {name}
+                </Text>
+
+                {address ? (
+                  <Text style={styles.address} numberOfLines={3}>
+                    {address}
+                  </Text>
+                ) : null}
+
                 <TouchableOpacity
                   accessibilityRole="button"
                   onPress={() => markerRef.current?.hideCallout?.()}
@@ -108,14 +149,14 @@ export default function MapLocation({ lat, lon, name }: Props) {
         </Marker>
       </MapView>
 
-      {/* máscara estética: NÃO usa overflow:hidden pra não cortar o Callout */}
       <View style={styles.roundMask} pointerEvents="none" />
     </View>
   );
-}
+};
+
+export default MapLocation;
 
 const styles = StyleSheet.create({
-  // ⚠️ NÃO usar overflow:'hidden' (corta o callout no Android)
   wrap: {
     marginTop: 20,
     height: 256,
@@ -128,7 +169,10 @@ const styles = StyleSheet.create({
 
   roundMask: {
     position: "absolute",
-    top: 0, right: 0, bottom: 0, left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "transparent",
@@ -142,7 +186,10 @@ const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
     zIndex: 20,
-    top: 0, right: 0, bottom: 0, left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 16,
@@ -167,7 +214,6 @@ const styles = StyleSheet.create({
   },
   exitTxt: { color: "#fff", fontWeight: "600", fontSize: 12 },
 
-  // ===== Bolha com “rabinho” =====
   tipWrap: { alignItems: "center" },
   bubble: {
     maxWidth: BUBBLE_MAX_W,
@@ -182,20 +228,43 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
-  title: { fontWeight: "700", fontSize: 15, color: "#0f172a", paddingRight: 22 },
+  title: {
+    fontWeight: "700",
+    fontSize: 15,
+    color: "#0f172a",
+    paddingRight: 22,
+  },
+  address: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#4b5563",
+  },
   closeBtn: { position: "absolute", right: 6, top: 6 },
-  closeTxt: { fontSize: 18, lineHeight: 18, color: "#9ca3af", fontWeight: "700" },
+  closeTxt: {
+    fontSize: 18,
+    lineHeight: 18,
+    color: "#9ca3af",
+    fontWeight: "700",
+  },
 
   arrowBorder: {
-    width: 0, height: 0,
-    borderLeftWidth: 11, borderRightWidth: 11, borderTopWidth: 13,
-    borderLeftColor: "transparent", borderRightColor: "transparent",
+    width: 0,
+    height: 0,
+    borderLeftWidth: 11,
+    borderRightWidth: 11,
+    borderTopWidth: 13,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderTopColor: "rgba(0,0,0,0.08)",
   },
   arrow: {
-    width: 0, height: 0,
-    borderLeftWidth: 10, borderRightWidth: 10, borderTopWidth: 12,
-    borderLeftColor: "transparent", borderRightColor: "transparent",
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderTopColor: "#fff",
     marginTop: -1,
   },

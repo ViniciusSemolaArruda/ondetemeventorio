@@ -47,11 +47,22 @@ type Props = {
 
 /* ===================== Constantes ===================== */
 const MUSIC_CATEGORIES = new Set<string>([
-  "Carnaval","Rodas de Samba","Bossa Nova","Passinho","Funk","Eletrônica",
-  "Forró","MPB","Rock","Blues","Jazz","Chorinho",
+  "Carnaval",
+  "Rodas de Samba",
+  "Bossa Nova",
+  "Passinho",
+  "Funk",
+  "Eletrônica",
+  "Forró",
+  "MPB",
+  "Rock",
+  "Blues",
+  "Jazz",
+  "Chorinho",
+  "Sertanejo",
 ]);
 
-const CARD_WIDTH = 260;      // igual ao web
+const CARD_WIDTH = 260; // igual ao web
 const H_GAP = 16;
 const IMAGE_ASPECT = 16 / 9;
 const IMAGE_HEIGHT = Math.round(CARD_WIDTH / IMAGE_ASPECT);
@@ -83,17 +94,39 @@ function toSafeUri(raw?: string | null) {
 
 /* ===================== Subcomponentes ===================== */
 const BadgeStack = memo(function BadgeStack({
-  acontecendo, chegando, esperado, acessado,
+  acontecendo,
+  chegando,
+  esperado,
+  acessado,
 }: {
-  acontecendo: boolean; chegando: boolean; esperado: boolean; acessado: boolean;
+  acontecendo: boolean;
+  chegando: boolean;
+  esperado: boolean;
+  acessado: boolean;
 }) {
   if (!(acontecendo || chegando || esperado || acessado)) return null;
   return (
     <View style={styles.badgeStack}>
-      {acontecendo && <View style={styles.badgeItem}><EventBadge type="acontecendo" /></View>}
-      {esperado && <View style={styles.badgeItem}><EventBadge type="maisEsperado" /></View>}
-      {chegando && <View style={styles.badgeItem}><EventBadge type="estaChegando" /></View>}
-      {acessado && <View style={styles.badgeItem}><EventBadge type="maisAcessado" /></View>}
+      {acontecendo && (
+        <View style={styles.badgeItem}>
+          <EventBadge type="acontecendo" />
+        </View>
+      )}
+      {esperado && (
+        <View style={styles.badgeItem}>
+          <EventBadge type="maisEsperado" />
+        </View>
+      )}
+      {chegando && (
+        <View style={styles.badgeItem}>
+          <EventBadge type="estaChegando" />
+        </View>
+      )}
+      {acessado && (
+        <View style={styles.badgeItem}>
+          <EventBadge type="maisAcessado" />
+        </View>
+      )}
     </View>
   );
 });
@@ -103,7 +136,9 @@ const ShareBtn = memo(function ShareBtn({ item }: { item: CarouselEvent }) {
     try {
       await Share.share({
         title: item.name,
-        message: `Confira ${item.name}${item.address ? ` em ${item.address}` : ""}\nhttps://ondetemeventorio.vercel.app/eventos/${item.id}`,
+        message: `Confira ${item.name}${
+          item.address ? ` em ${item.address}` : ""
+        }\nhttps://ondetemeventorio.vercel.app/eventos/${item.id}`,
       });
     } catch {}
   }, [item.id, item.name, item.address]);
@@ -159,14 +194,24 @@ const MusicCard = memo(function MusicCard({
         />
 
         <TouchableOpacity style={styles.likeButton} onPress={() => onPressLike(item.id)}>
-          <AntDesign name={liked ? "heart" : "hearto"} size={16} color={liked ? "red" : "#9CA3AF"} />
+          <AntDesign
+            name={liked ? "heart" : "hearto"}
+            size={16}
+            color={liked ? "red" : "#9CA3AF"}
+          />
           <Text style={styles.likeText}>{count}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
-        {!!item.address && <Text numberOfLines={2} style={styles.address}>{item.address}</Text>}
+        <Text numberOfLines={1} style={styles.name}>
+          {item.name}
+        </Text>
+        {!!item.address && (
+          <Text numberOfLines={2} style={styles.address}>
+            {item.address}
+          </Text>
+        )}
 
         <View style={styles.footerRow}>
           <Text style={styles.cta}>Saiba Mais</Text>
@@ -191,10 +236,16 @@ export default function MusicEventsCarousel({
   const [mostLikedId, setMostLikedId] = useState<string | null>(null);
   const [mostAccessedId, setMostAccessedId] = useState<string | null>(null);
 
-  const aprovados = useMemo(() => barbershops.filter((b) => b.aprovado === true), [barbershops]);
+  const aprovados = useMemo(
+    () => barbershops.filter((b) => b.aprovado === true),
+    [barbershops]
+  );
 
   const apenasMusicais = useMemo(
-    () => aprovados.filter((e) => (e.categories || []).some((c) => MUSIC_CATEGORIES.has(c))),
+    () =>
+      aprovados.filter((e) =>
+        (e.categories || []).some((c) => MUSIC_CATEGORIES.has(c))
+      ),
     [aprovados]
   );
 
@@ -207,7 +258,9 @@ export default function MusicEventsCarousel({
 
   useEffect(() => {
     const map: Record<string, { liked: boolean; count: number }> = {};
-    for (const e of eventosParaCarrossel) map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
+    for (const e of eventosParaCarrossel) {
+      map[e.id] = { liked: e.likedByUser ?? false, count: e.likesCount ?? 0 };
+    }
     setLikesMap(map);
   }, [eventosParaCarrossel]);
 
@@ -221,37 +274,61 @@ export default function MusicEventsCarousel({
         setMostAccessedId(res.mostAccessedId ?? null);
       } catch {}
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const toggleLikeApi = useCallback(
     async (id: string) => {
       const prev = likesMap[id] ?? { liked: false, count: 0 };
-      const optimistic = { liked: !prev.liked, count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1 };
+      const optimistic = {
+        liked: !prev.liked,
+        count: prev.liked ? Math.max(0, prev.count - 1) : prev.count + 1,
+      };
       setLikesMap((m) => ({ ...m, [id]: optimistic }));
       try {
         const res = await apiHelpers.likeEvent(id);
-        setLikesMap((m) => ({ ...m, [id]: { liked: !!res.liked, count: Number(res.count ?? 0) } }));
-      } catch (err) {
+        setLikesMap((m) => ({
+          ...m,
+          [id]: { liked: !!res.liked, count: Number(res.count ?? 0) },
+        }));
+      } catch {
         setLikesMap((m) => ({ ...m, [id]: prev }));
-        Toast.show({ type: "error", text1: "Não foi possível curtir agora.", position: "bottom" });
+        Toast.show({
+          type: "error",
+          text1: "Não foi possível curtir agora.",
+          position: "bottom",
+        });
       }
     },
     [likesMap]
   );
 
-  const handlePressLike = useCallback((id: string) => {
-    if (!isLoggedIn) {
-      Toast.show({ type: "info", text1: "Você precisa estar logado", text2: "Entre na sua conta.", position: "bottom", visibilityTime: 3000 });
-      setShowLoginModal(true);
-      return;
-    }
-    toggleLikeApi(id);
-  }, [isLoggedIn, toggleLikeApi]);
+  const handlePressLike = useCallback(
+    (id: string) => {
+      if (!isLoggedIn) {
+        Toast.show({
+          type: "info",
+          text1: "Você precisa estar logado",
+          text2: "Entre na sua conta.",
+          position: "bottom",
+          visibilityTime: 3000,
+        });
+        setShowLoginModal(true);
+        return;
+      }
+      toggleLikeApi(id);
+    },
+    [isLoggedIn, toggleLikeApi]
+  );
 
-  const onPressCard = useCallback((id: string) => {
-    router.push({ pathname: "/barbershop/[id]", params: { id } });
-  }, [router]);
+  const onPressCard = useCallback(
+    (id: string) => {
+      router.push({ pathname: "/barbershop/[id]", params: { id } });
+    },
+    [router]
+  );
 
   const keyExtractor = useCallback((item: CarouselEvent) => item.id, []);
 
@@ -270,7 +347,10 @@ export default function MusicEventsCarousel({
           const { liked, count } = likesMap[item.id] || { liked: false, count: 0 };
           const dias = daysUntil(item.startDate);
           const showEstaChegando = dias !== null && dias >= 0 && dias <= 5;
-          const showAcontecendo = isHappeningNow(item.startDate, item.endDate);
+
+          // 🔴 desativa totalmente o "acontecendo"
+          const showAcontecendo = false;
+
           const showMaisEsperado = mostLikedId === item.id;
           const showMaisAcessado = mostAccessedId === item.id;
 
@@ -289,8 +369,9 @@ export default function MusicEventsCarousel({
           );
         }}
         // Se a tipagem da sua versão não incluir 'size', mantenha o cast:
-         
-        overrideItemLayout={(layout: any) => { layout.size = CARD_WIDTH; }}
+        overrideItemLayout={(layout: any) => {
+          layout.size = CARD_WIDTH;
+        }}
         snapToInterval={CARD_WIDTH + H_GAP}
         decelerationRate="fast"
         snapToAlignment="start"
@@ -298,13 +379,21 @@ export default function MusicEventsCarousel({
 
       {/* Modal de login */}
       <Modal visible={showLoginModal} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowLoginModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowLoginModal(false)}
+        >
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Acesse sua conta</Text>
-            <Text style={styles.modalSubtitle}>Entre com sua conta Google para continuar</Text>
+            <Text style={styles.modalSubtitle}>
+              Entre com sua conta Google para continuar
+            </Text>
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => { setShowLoginModal(false); onLoginPress(); }}
+              onPress={() => {
+                setShowLoginModal(false);
+                onLoginPress();
+              }}
             >
               <RNImage
                 source={require("@/assets/images/google.png")}
@@ -376,7 +465,12 @@ const styles = StyleSheet.create({
   name: { fontWeight: "800", fontSize: 16, color: "#0F172A" },
   address: { fontSize: 12, color: "#6B7280", marginTop: 4, minHeight: 32 },
 
-  footerRow: { marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  footerRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   cta: { fontSize: 12, color: "#059669", fontWeight: "700" },
   shareInlineButton: {
     padding: 6,
@@ -386,8 +480,19 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
 
-  modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#00000099" },
-  modalBox: { backgroundColor: "#fff", padding: 24, borderRadius: 12, width: "80%", alignItems: "center" },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#00000099",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    padding: 24,
+    borderRadius: 12,
+    width: "80%",
+    alignItems: "center",
+  },
   modalTitle: { fontSize: 20, fontWeight: "600", marginBottom: 8 },
   modalSubtitle: { fontSize: 14, color: "#555", marginBottom: 16 },
   loginButton: {

@@ -2,7 +2,14 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { FlatListProps } from "react-native";
 import {
   Dimensions,
@@ -25,37 +32,53 @@ import { useI18n } from "@/context/I18nContext";
 const STORAGE_KEY_REGION = "@ote:selectedRegion";
 const STORAGE_KEY_SELECTED = "@ote:quick_selected_key";
 
-// === layout consts ===
-const ITEM_W = 132;         // largura do card
-const ITEM_SEPARATOR = 12;  // espaço entre cards
-const H_PADDING = 16;       // padding do contentContainer
+// layout
+const ITEM_W = 132;
+const ITEM_SEPARATOR = 12;
+// ⚠️ H_PADDING NÃO será usado em padding da lista;
+// a margem lateral vem da FlatList da tela de eventos.
+const H_PADDING = 16;
 const SCREEN_W = Dimensions.get("window").width;
 
 /* ===========================
    ÍCONES
 =========================== */
 const ICONS: Record<string, any> = {
-  "/musica(1).png": require("@/assets/icons/musica(1).png"),
-  "/show.png": require("@/assets/icons/show.png"),
-  "/ano-novo.png": require("@/assets/icons/ano-novo.png"),
-  "/boate.png": require("@/assets/icons/boate.png"),
-  "/parque-tematico.png": require("@/assets/icons/parque-tematico.png"),
-  "/bar.png": require("@/assets/icons/bar.png"),
-  "/restaurante.png": require("@/assets/icons/restaurante.png"),
-  "/religion.png": require("@/assets/icons/religion.png"),
-  "/claquete.png": require("@/assets/icons/claquete.png"),
-  "/teatro.png": require("@/assets/icons/teatro.png"),
+  "/musica(1).png": require("../assets/icons/musica(1).png"),
+  "/show.png": require("../assets/icons/show.png"),
+  "/ano-novo.png": require("../assets/icons/ano-novo.png"),
+  "/boate.png": require("../assets/icons/boate.png"),
+
+  "/parque-tematico.png": require("../assets/icons/parque-tematico.png"),
+  "/bar.png": require("../assets/icons/bar.png"),
+
+  "/chefe-de-cozinha.png": require("../assets/icons/chefe-de-cozinha.png"),
+  "/restaurante.png": require("../assets/icons/restaurante.png"),
+
+  "/religion.png": require("../assets/icons/religion.png"),
+  "/claquete.png": require("../assets/icons/claquete.png"),
+  "/teatro.png": require("../assets/icons/teatro.png"),
+
   "/contorno-de-microfone-condensador-profissional.png":
-    require("@/assets/icons/contorno-de-microfone-condensador-profissional.png"),
-  "/trabalho-em-equipe.png": require("@/assets/icons/trabalho-em-equipe.png"),
-  "/esporte.png": require("@/assets/icons/esporte.png"),
-  "/chefe-de-cozinha.png": require("@/assets/icons/chefe-de-cozinha.png"),
-  "/barraca-de-comida.png": require("@/assets/icons/barraca-de-comida.png"),
-  "/seminario.png": require("@/assets/icons/seminario.png"),
-  "/simposio.png": require("@/assets/icons/simposio.png"),
-  "/planeta-terra.png": require("@/assets/icons/planeta-terra.png"),
-  "/agricultura.png": require("@/assets/icons/agricultura.png"),
+    require("../assets/icons/contorno-de-microfone-condensador-profissional.png"),
+
+  "/trabalho-em-equipe.png": require("../assets/icons/trabalho-em-equipe.png"),
+  "/esporte.png": require("../assets/icons/esporte.png"),
+
+  "/barraca-de-comida.png": require("../assets/icons/barraca-de-comida.png"),
+  "/ancora.png": require("../assets/icons/ancora.png"),
+  "/seminario.png": require("../assets/icons/seminario.png"),
+  "/simposio.png": require("../assets/icons/simposio.png"),
+
+  "/planeta-terra.png": require("../assets/icons/planeta-terra.png"),
+  "/agricultura.png": require("../assets/icons/agricultura.png"),
+
+  // ✅ novos
+  "/alfabeto.png": require("../assets/icons/alfabeto.png"),
+  "/pata.png": require("../assets/icons/pata.png"),
 };
+
+
 const resolveIcon = (imageUrl?: string): ImageSourcePropType => {
   if (!imageUrl) return ICONS["/show.png"];
   const local = ICONS[imageUrl];
@@ -64,9 +87,13 @@ const resolveIcon = (imageUrl?: string): ImageSourcePropType => {
   return ICONS["/show.png"];
 };
 
-// normaliza p/ comparar services/keys
 const toSlug = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 /* ===========================
    Card
@@ -77,10 +104,16 @@ type CardProps = {
   onPress: () => void;
   selected: boolean;
 };
-const QuickCard = memo(function QuickCard({ label, icon, onPress, selected }: CardProps) {
+
+const QuickCard = memo(function QuickCard({
+  label,
+  icon,
+  onPress,
+  selected,
+}: CardProps) {
   return (
     <TouchableOpacity
-      style={[styles.card, { width: ITEM_W }, selected && styles.cardSelected]}
+      style={[styles.card, selected && styles.cardSelected]}
       onPress={onPress}
       activeOpacity={0.9}
     >
@@ -100,7 +133,10 @@ type Props = {
   showHeader?: boolean;
 };
 
-export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true }: Props) {
+export default function QuickSearchSectionRN({
+  onPressSeeAll,
+  showHeader = true,
+}: Props) {
   const { t } = useI18n();
   const router = useRouter();
   const sp = useLocalSearchParams() as { region?: string; service?: string };
@@ -108,27 +144,28 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
   const listRef = useRef<FlatList<QuickSearchOption>>(null);
   const data = useMemo<QuickSearchOption[]>(() => quickSearchOptions, []);
 
-  // key -> index
   const indexByKey = useMemo(() => {
     const m = new Map<string, number>();
     data.forEach((opt, i) => m.set(opt.key, i));
     return m;
   }, [data]);
 
-  // achar key pela query ?service
   const findKeyByService = useCallback(
     (service: string | undefined | null): string | null => {
       const s = toSlug((service || "").toString());
       if (!s) return null;
-      const match = data.find((opt) => toSlug(getServiceFromKey(opt.key, opt.value)) === s);
+      const match = data.find(
+        (opt) => toSlug(getServiceFromKey(opt.key, opt.value)) === s
+      );
       return match?.key ?? null;
     },
     [data]
   );
 
-  // init seleção: URL -> storage
   const initialKeyFromUrl = findKeyByService(sp?.service);
-  const [selectedKey, setSelectedKey] = useState<string | null>(initialKeyFromUrl);
+  const [selectedKey, setSelectedKey] = useState<string | null>(
+    initialKeyFromUrl
+  );
 
   useEffect(() => {
     if (selectedKey) return;
@@ -141,27 +178,23 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // atualiza quando ?service mudar
   useEffect(() => {
     const k = findKeyByService(sp?.service);
     if (k && k !== selectedKey) setSelectedKey(k);
   }, [sp?.service, findKeyByService, selectedKey]);
 
-  // === centralizar via scrollToOffset (preciso e sem "drift") ===
   const centerIndex = useCallback(
     (idx: number, animated = false) => {
       if (idx < 0) return;
 
-      // início do item (considerando padding e separadores anteriores)
       const startX = H_PADDING + idx * (ITEM_W + ITEM_SEPARATOR);
-      // queremos deixar o centro do item no centro da tela
       const desired = startX - (SCREEN_W / 2 - ITEM_W / 2);
 
-      // largura total do conteúdo
       const total =
-        H_PADDING * 2 + data.length * ITEM_W + (data.length - 1) * ITEM_SEPARATOR;
+        H_PADDING * 2 +
+        data.length * ITEM_W +
+        (data.length - 1) * ITEM_SEPARATOR;
 
-      // clamp para não passar das bordas
       const maxOffset = Math.max(0, total - SCREEN_W);
       const offset = Math.max(0, Math.min(desired, maxOffset));
 
@@ -179,7 +212,6 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
     [indexByKey, centerIndex]
   );
 
-  // centraliza no mount e quando selectedKey muda
   useEffect(() => {
     if (selectedKey) centerByKey(selectedKey, false);
   }, [selectedKey, centerByKey]);
@@ -193,14 +225,12 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
     async (opt: QuickSearchOption) => {
       const serviceValue = getServiceFromKey(opt.key, opt.value);
 
-      // seleciona + persiste + centraliza já
       setSelectedKey(opt.key);
       try {
         await AsyncStorage.setItem(STORAGE_KEY_SELECTED, opt.key);
       } catch {}
       centerByKey(opt.key, true);
 
-      // monta query preservando região
       const urlRegion = (sp?.region || "").toString().trim();
       let savedRegion = "";
       try {
@@ -213,21 +243,24 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
       if (serviceValue) q.set("service", serviceValue);
       if (regionToUse) q.set("region", regionToUse);
 
-      router.push(q.toString() ? (`/barbershops?${q.toString()}` as any) : ("/barbershops" as any));
+      router.push(
+        q.toString()
+          ? (`/barbershops?${q.toString()}` as any)
+          : ("/barbershops" as any)
+      );
 
       try {
-        if (regionToUse) await AsyncStorage.setItem(STORAGE_KEY_REGION, regionToUse);
+        if (regionToUse)
+          await AsyncStorage.setItem(STORAGE_KEY_REGION, regionToUse);
         else await AsyncStorage.removeItem(STORAGE_KEY_REGION);
       } catch {}
     },
     [router, sp?.region, centerByKey]
   );
 
-  // getItemLayout (opcional, ajuda performance; não é usado para centrar)
-  const getItemLayout: NonNullable<FlatListProps<QuickSearchOption>["getItemLayout"]> = (
-    _data,
-    index
-  ) => {
+  const getItemLayout: NonNullable<
+    FlatListProps<QuickSearchOption>["getItemLayout"]
+  > = (_data, index) => {
     const length = ITEM_W;
     const offset = H_PADDING + index * (ITEM_W + ITEM_SEPARATOR);
     return { length, offset, index };
@@ -237,9 +270,13 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
     <View style={styles.wrapper}>
       {showHeader && (
         <View style={styles.topRow}>
-          <Text style={styles.title}>{t("quick_title") || "Busca Rápida"}</Text>
+          <Text style={styles.title}>
+            {t("quick_title") || "Busca Rápida"}
+          </Text>
           <TouchableOpacity style={styles.seeAllRow} onPress={handleSeeAll}>
-            <Text style={styles.seeAllText}>{t("quick_view_all") || "Ver todas"}</Text>
+            <Text style={styles.seeAllText}>
+              {t("quick_view_all") || "Ver todas"}
+            </Text>
             <Feather name="chevron-right" size={16} color="#f97316" />
           </TouchableOpacity>
         </View>
@@ -253,9 +290,10 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
         keyExtractor={(item) => item.key}
         extraData={selectedKey}
         getItemLayout={getItemLayout}
-        contentContainerStyle={[styles.listContent, { paddingHorizontal: H_PADDING }]}
+        // 🔥 sem paddingHorizontal aqui – quem define é a FlatList da tela
+        contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={{ width: ITEM_SEPARATOR }} />}
-        renderItem={({ item, index }) => {
+        renderItem={({ item }) => {
           const label = t(item.key) || item.title;
           const icon = resolveIcon(item.imageUrl);
           const selected = selectedKey === item.key;
@@ -274,9 +312,9 @@ export default function QuickSearchSectionRN({ onPressSeeAll, showHeader = true 
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginTop: 16 },
+  wrapper: { marginTop: 8 },
   topRow: {
-    paddingHorizontal: 16,
+    // sem paddingHorizontal aqui: já vem da FlatList principal
     marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -285,7 +323,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: "700", color: "#0f172a" },
   seeAllRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   seeAllText: { fontSize: 14, color: "#f97316", fontWeight: "600" },
-  listContent: { paddingBottom: 2 },
+
+  listContent: {
+    paddingBottom: 2,
+  },
 
   card: {
     width: ITEM_W,

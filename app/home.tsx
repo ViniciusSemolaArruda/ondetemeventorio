@@ -20,7 +20,6 @@ import Calendar from "@/components/Calendar";
 import EventosGrid from "@/components/EventosGrid";
 import Footer from "@/components/footer";
 import Header from "@/components/Header";
-import MapRJ from "@/components/MapRJ";
 import Search from "@/components/search";
 import { useAuth } from "@/context/AuthContext";
 import { useBanners } from "@/hooks/useBanners";
@@ -34,9 +33,8 @@ import FilterBarRN from "@/components/FilterBarRN";
 import LanguageHeaderRN, { Lang } from "@/components/LanguageHeaderRN";
 
 import { useI18n } from "@/context/I18nContext";
-import { mapCityToRegion } from "@/lib/rjRegions";
 
-// ✅ usa i18n keys e resolve para o valor do DB
+// usa i18n keys e resolve para o valor do DB
 import {
   getServiceFromKey,
   KEY_TO_DB,
@@ -44,6 +42,7 @@ import {
   type KeyI18n,
 } from "@/constants/search";
 
+import MapTeaserCard from "@/components/MapTeaserCard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type EventMapItem = {
@@ -89,10 +88,16 @@ const ALL_CAT_KEYS: KeyI18n[] = [
   "cat_standup",
   "cat_familia",
   "cat_boate",
+  // novas
+  "cat_kids",
+  "cat_pets",
+  "cat_charme",
 ];
 
-// Conjunto com os VALORES do DB para todas as categorias
-const ALL_CATEGORIES_SET = new Set<string>(ALL_CAT_KEYS.map((k) => KEY_TO_DB[k]));
+// Conjunto com os VALORES do DB para todas as categorias (reserva / debug)
+const ALL_CATEGORIES_SET = new Set<string>(
+  ALL_CAT_KEYS.map((k) => KEY_TO_DB[k]),
+);
 
 // =======================
 // CATEGORIAS DE MÚSICA (subset)
@@ -110,10 +115,14 @@ const MUSIC_KEYS: KeyI18n[] = [
   "cat_blues",
   "cat_jazz",
   "cat_chorinho",
+  "cat_sertanejo",
+  "cat_charme",
 ];
 
 // Conjunto com os VALORES do DB para as categorias de música
-const MUSIC_CATEGORIES_SET = new Set<string>(MUSIC_KEYS.map((k) => KEY_TO_DB[k]));
+const MUSIC_CATEGORIES_SET = new Set<string>(
+  MUSIC_KEYS.map((k) => KEY_TO_DB[k]),
+);
 
 type Filters = { region?: string; category?: string };
 
@@ -127,7 +136,9 @@ const toNum = (v: unknown): number | null => {
 };
 const inBounds = (lat: number, lng: number) =>
   lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-const eTime = (d?: string | null) => (d ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER);
+
+const eTime = (d?: string | null) =>
+  d ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER;
 
 const STORAGE_KEY = "@ote:selectedRegion";
 
@@ -138,24 +149,32 @@ export default function Home() {
   const { t, lang, setLang } = useI18n();
 
   const [langHeaderVisible, setLangHeaderVisible] = useState(true);
-  const firstName = useMemo(() => (user?.name || "").trim().split(" ")[0], [user?.name]);
+  const firstName = useMemo(
+    () => (user?.name || "").trim().split(" ")[0],
+    [user?.name],
+  );
 
-  // Scroll x Mapa
+  // Scroll x Mapa (já existia, mantido)
   const [listScrollEnabled, setListScrollEnabled] = useState(true);
   const [mapInteractive, setMapInteractive] = useState(false);
 
   // dados
   const [eventsForYou, setEventsForYou] = useState<ApiEvent[]>([]);
   const [eventsMusicDated, setEventsMusicDated] = useState<ApiEvent[]>([]);
-  const [eventsNonMusicDated, setEventsNonMusicDated] = useState<ApiEvent[]>([]);
+  const [eventsNonMusicDated, setEventsNonMusicDated] = useState<ApiEvent[]>(
+    [],
+  );
   const [eventsFixed, setEventsFixed] = useState<ApiEvent[]>([]);
   const [mapData, setMapData] = useState<EventMapItem[]>([]);
 
-  // filtros
-  const [filters, setFilters] = useState<Filters>({});
+  // filtros (region + category)
+  const [filters, setFilters] = useState<Filters>({
+    region: "",
+    category: "",
+  });
   const [eventsLoading, setEventsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [regionReady, setRegionReady] = useState(false); // ✅ só busca após hidratar região
+  const [regionReady, setRegionReady] = useState(false); // só busca após hidratar região
 
   const { banners, loading: loadingBanners } = useBanners();
 
@@ -166,13 +185,17 @@ export default function Home() {
 
   const loadingRef = useRef(false);
 
-  // ✅ hidrata região persistida antes da 1ª busca
+  // hidrata região persistida antes da 1ª busca
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (typeof saved === "string") {
-          setFilters((prev) => ((prev.region ?? "") === saved ? prev : { ...prev, region: saved }));
+          setFilters((prev) =>
+            (prev.region ?? "") === saved
+              ? prev
+              : { ...prev, region: saved, category: "" },
+          );
         }
       } finally {
         setRegionReady(true);
@@ -194,49 +217,94 @@ export default function Home() {
     setMapData([]);
 
     let cancelled = false;
+
     (async () => {
       try {
-        const data: ApiEvent[] = await apiHelpers.events();
+        const region = (filters.region ?? "").trim();
+
+        // ✅ MESMA LÓGICA DO MAPRJ: API já vem filtrada por região
+        const data: ApiEvent[] = await apiHelpers.events(
+          region ? { region } : {},
+        );
 
         const normalized: ApiEvent[] = data.map((e) => ({
           ...e,
           likesCount: typeof e.likesCount === "number" ? e.likesCount : 0,
-          likedByUser: typeof e.likedByUser === "boolean" ? e.likedByUser : false,
+          likedByUser:
+            typeof e.likedByUser === "boolean" ? e.likedByUser : false,
           categories: Array.isArray(e.categories) ? e.categories : [],
         }));
 
         normalized.sort((a, b) => eTime(a.startDate) - eTime(b.startDate));
         const approved = normalized.filter((e) => e.aprovado === true);
 
-        // filtro por região
-        const region = (filters.region ?? "").trim();
-        let approvedFiltered =
-          region === "" ? approved : approved.filter((e) => mapCityToRegion(e.address ?? "") === region);
+        console.log("====== DEBUG HOME RN ======");
+        console.log("Região param enviada à API:", JSON.stringify(region));
+        console.log("Total aprovados (já filtrados pela API):", approved.length);
 
-        // filtro por categoria (usa VALOR do DB)
+        // filtro por categoria (valor de DB)
         const category = (filters.category ?? "").trim();
+        let approvedFiltered = approved;
+
         if (category) {
-          approvedFiltered = approvedFiltered.filter((e) => (e.categories ?? []).includes(category));
+          approvedFiltered = approvedFiltered.filter((e) =>
+            (e.categories ?? []).includes(category),
+          );
+          console.log(
+            "Após filtro de categoria",
+            category,
+            "→",
+            approvedFiltered.length,
+            "eventos",
+          );
         }
 
-        const fixed = approvedFiltered.filter((e) => !e.startDate && !e.endDate);
-        const dated = approvedFiltered.filter((e) => e.startDate || e.endDate);
-
-        // ✅ “Música” = somente categorias musicais (VALORES do DB)
-        const musicDated = dated.filter((e) =>
-          (e.categories ?? []).some((c) => MUSIC_CATEGORIES_SET.has(c)),
+        const fixed = approvedFiltered.filter(
+          (e) => !e.startDate && !e.endDate,
+        );
+        const dated = approvedFiltered.filter(
+          (e) => e.startDate || e.endDate,
         );
 
-        // ✅ “Mais Eventos” = todos os outros (não-musicais)
+        console.log(
+          "Split fixed:",
+          fixed.length,
+          "| dated:",
+          dated.length,
+        );
+
+        // Música = somente categorias musicais (VALORES do DB)
+        const musicDated = dated.filter((e) =>
+          (e.categories ?? []).some((c) =>
+            MUSIC_CATEGORIES_SET.has(c),
+          ),
+        );
+
+        // Mais eventos = todos os outros (não musicais)
         const nonMusicDated = dated.filter(
-          (e) => !(e.categories ?? []).some((c) => MUSIC_CATEGORIES_SET.has(c)),
+          (e) =>
+            !(e.categories ?? []).some((c) =>
+              MUSIC_CATEGORIES_SET.has(c),
+            ),
+        );
+
+        console.log(
+          "musicDated:",
+          musicDated.length,
+          "| nonMusicDated:",
+          nonMusicDated.length,
         );
 
         let forYou: ApiEvent[] = [];
         if (prefsKey) {
           const prefs = prefsKey.split("|");
-          forYou = dated.filter((evento) => (evento.categories ?? []).some((c) => prefs.includes(c)));
+          forYou = dated.filter((evento) =>
+            (evento.categories ?? []).some((c) =>
+              prefs.includes(c),
+            ),
+          );
         }
+        console.log("Eventos para você:", forYou.length);
 
         const mapItems: EventMapItem[] = approvedFiltered
           .map((e) => {
@@ -253,6 +321,8 @@ export default function Home() {
           })
           .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
           .filter((p) => inBounds(p.lat, p.lng));
+
+        console.log("Eventos no mapa (após filtro):", mapItems.length);
 
         if (!cancelled) {
           setEventsFixed(fixed);
@@ -280,29 +350,40 @@ export default function Home() {
   };
 
   const greeting = isLoggedIn
-    ? (t("greeting_named") || "Olá, {name}!").replace("{name}", firstName || t("greeting_guest"))
+    ? (t("greeting_named") || "Olá, {name}!").replace(
+        "{name}",
+        firstName || t("greeting_guest"),
+      )
     : t("greeting_guest");
 
   const userPrefs = useMemo(
     () =>
-      user?.preferencesSet && Array.isArray(user?.preferences) && user.preferences.length > 0
+      user?.preferencesSet &&
+      Array.isArray(user?.preferences) &&
+      user.preferences.length > 0
         ? user.preferences
         : null,
     [user?.preferencesSet, user?.preferences],
   );
 
-  // =========================
-  // ✅ EVITAR REPETIÇÃO ENTRE SEÇÕES
-  // =========================
-  const forYouIds = useMemo(() => new Set(eventsForYou.map((e) => String(e.id))), [eventsForYou]);
-  const fixedIds = useMemo(() => eventsFixed.map((e) => e.id), [eventsFixed]);
+  // evitar repetição entre seções
+  const forYouIds = useMemo(
+    () => new Set(eventsForYou.map((e) => String(e.id))),
+    [eventsForYou],
+  );
+  const fixedIds = useMemo(
+    () => eventsFixed.map((e) => e.id),
+    [eventsFixed],
+  );
 
   const musicDatedRender = useMemo(
-    () => eventsMusicDated.filter((e) => !forYouIds.has(String(e.id))),
+    () =>
+      eventsMusicDated.filter((e) => !forYouIds.has(String(e.id))),
     [eventsMusicDated, forYouIds],
   );
   const nonMusicDatedRender = useMemo(
-    () => eventsNonMusicDated.filter((e) => !forYouIds.has(String(e.id))),
+    () =>
+      eventsNonMusicDated.filter((e) => !forYouIds.has(String(e.id))),
     [eventsNonMusicDated, forYouIds],
   );
   const fixedRender = useMemo(
@@ -315,40 +396,68 @@ export default function Home() {
     setLangHeaderVisible(y <= 0);
   };
 
-  // aplica região (FilterBarRN)
+  // aplica região (FilterBarRN) — zera categoria junto
   const handleApply = (q: Record<string, string>) => {
-    setFilters((prev) => ({ ...prev, region: q.region ?? "" }));
+    setFilters((prev) => ({
+      ...prev,
+      region: q.region ?? "",
+      category: "", // troca de região limpa categoria
+    }));
   };
 
-  // aplica categoria (se usar chips) — espera o VALOR de DB (ex.: "Carnaval")
+  // aplica categoria (espera VALOR do DB, ex.: "Carnaval")
   const handleCategory = (cat: string) => {
-    setFilters((prev) => ({ ...prev, category: prev.category === cat ? "" : cat }));
+    setFilters((prev) => ({
+      ...prev,
+      category: prev.category === cat ? "" : cat,
+    }));
   };
 
   // ========= ICONES “CLÁSSICOS” PARA QUICK SEARCH =========
   const resolveIcon = (imageUrl?: string) => {
     const ICONS: Record<string, any> = {
       "/musica(1).png": require("../assets/icons/musica(1).png"),
+
       "/show.png": require("../assets/icons/show.png"),
       "/ano-novo.png": require("../assets/icons/ano-novo.png"),
       "/boate.png": require("../assets/icons/boate.png"),
-      "/parque-tematico.png": require("../assets/icons/parque-tematico.png"),
+
+      "/parque-tematico.png":
+        require("../assets/icons/parque-tematico.png"),
       "/bar.png": require("../assets/icons/bar.png"),
-      "/restaurante.png": require("../assets/icons/restaurante.png"),
+
+      "/chefe-de-cozinha.png":
+        require("../assets/icons/chefe-de-cozinha.png"),
+      "/restaurante.png":
+        require("../assets/icons/restaurante.png"),
+
       "/religion.png": require("../assets/icons/religion.png"),
       "/claquete.png": require("../assets/icons/claquete.png"),
       "/teatro.png": require("../assets/icons/teatro.png"),
+
       "/contorno-de-microfone-condensador-profissional.png":
         require("../assets/icons/contorno-de-microfone-condensador-profissional.png"),
-      "/trabalho-em-equipe.png": require("../assets/icons/trabalho-em-equipe.png"),
+
+      "/trabalho-em-equipe.png":
+        require("../assets/icons/trabalho-em-equipe.png"),
       "/esporte.png": require("../assets/icons/esporte.png"),
-      "/chefe-de-cozinha.png": require("../assets/icons/chefe-de-cozinha.png"),
-      "/barraca-de-comida.png": require("../assets/icons/barraca-de-comida.png"),
+
+      "/barraca-de-comida.png":
+        require("../assets/icons/barraca-de-comida.png"),
+      "/ancora.png": require("../assets/icons/ancora.png"),
       "/seminario.png": require("../assets/icons/seminario.png"),
       "/simposio.png": require("../assets/icons/simposio.png"),
-      "/planeta-terra.png": require("../assets/icons/planeta-terra.png"),
-      "/agricultura.png": require("../assets/icons/agricultura.png"),
+
+      "/planeta-terra.png":
+        require("../assets/icons/planeta-terra.png"),
+      "/agricultura.png":
+        require("../assets/icons/agricultura.png"),
+
+      // novos ícones
+      "/alfabeto.png": require("../assets/icons/alfabeto.png"),
+      "/pata.png": require("../assets/icons/pata.png"),
     };
+
     const DEFAULT_ICON = ICONS["/show.png"];
     if (!imageUrl) return DEFAULT_ICON;
     const local = ICONS[imageUrl];
@@ -358,17 +467,51 @@ export default function Home() {
   };
   // ========================================================
 
+  // ========= Eventos externos para o Calendar (evita fetch interno) =========
+  type RawEvent = {
+    id: string;
+    name: string;
+    address: string;
+    startDate: string;
+    endDate: string;
+  };
+  const externalEvents: RawEvent[] = useMemo(() => {
+    const datedAll = [...eventsMusicDated, ...eventsNonMusicDated];
+    return datedAll
+      .map((e) => {
+        const start = e.startDate || e.endDate;
+        const end = e.endDate || e.startDate;
+        if (!start || !end) return null;
+        return {
+          id: String(e.id),
+          name: e.name || "",
+          address: e.address || "",
+          startDate: String(start),
+          endDate: String(end),
+        };
+      })
+      .filter(Boolean) as RawEvent[];
+  }, [eventsMusicDated, eventsNonMusicDated]);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#f2f2f2" }}>
       <FlatList
         data={[{ key: "header" }]}
         scrollEnabled={listScrollEnabled}
         renderItem={() => null}
-        keyExtractor={(item) => (typeof item === "string" ? item : item.key)}
+        keyExtractor={(item) =>
+          typeof item === "string" ? item : item.key
+        }
         style={{ backgroundColor: "#f2f2f2" }}
         contentContainerStyle={{ backgroundColor: "#f2f2f2" }}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        // perf
+        removeClippedSubviews
+        windowSize={5}
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        updateCellsBatchingPeriod={50}
         ListHeaderComponent={
           <View style={styles.container}>
             {/* topo: idiomas */}
@@ -388,7 +531,11 @@ export default function Home() {
                 <Search
                   onSubmit={(title) => {
                     if (title?.trim()) {
-                      router.push(`/barbershops?title=${encodeURIComponent(title.trim())}`);
+                      router.push(
+                        `/barbershops?title=${encodeURIComponent(
+                          title.trim(),
+                        )}`,
+                      );
                     }
                   }}
                 />
@@ -396,13 +543,21 @@ export default function Home() {
 
               {/* Busca Rápida */}
               <View style={styles.quickSearchHeader}>
-                <Text style={styles.quickSearchTitle}>{t("quick_title")}</Text>
+                <Text style={styles.quickSearchTitle}>
+                  {t("quick_title")}
+                </Text>
                 <TouchableOpacity
                   style={styles.seeAllRow}
                   onPress={() => router.push("/colecoes" as any)}
                 >
-                  <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
-                  <Feather name="chevron-right" size={16} color="#f97316" />
+                  <Text style={styles.seeAll}>
+                    {t("quick_view_all")}
+                  </Text>
+                  <Feather
+                    name="chevron-right"
+                    size={16}
+                    color="#f97316"
+                  />
                 </TouchableOpacity>
               </View>
 
@@ -414,17 +569,25 @@ export default function Home() {
                   keyExtractor={(item) => item.key}
                   renderItem={({ item }) => {
                     const label = t(item.key) || item.title;
-                    const serviceValue = getServiceFromKey(item.key, item.value);
+                    const serviceValue = getServiceFromKey(
+                      item.key,
+                      item.value,
+                    );
                     return (
                       <TouchableOpacity
                         style={styles.quickOption}
                         onPress={() =>
                           router.push(
-                            `/barbershops?service=${encodeURIComponent(serviceValue)}` as any,
+                            `/barbershops?service=${encodeURIComponent(
+                              serviceValue,
+                            )}` as any,
                           )
                         }
                       >
-                        <Image source={resolveIcon(item.imageUrl)} style={styles.quickImage} />
+                        <Image
+                          source={resolveIcon(item.imageUrl)}
+                          style={styles.quickImage}
+                        />
                         <Text style={styles.quickText}>{label}</Text>
                       </TouchableOpacity>
                     );
@@ -443,36 +606,56 @@ export default function Home() {
                       displaySeconds: b.displaySeconds ?? 3,
                     }))}
                     autoPlay
-                    showAdBadge
-                    adText={t("ad_here")}
                   />
                 </View>
               )}
 
-              {/* Filtro em cards (regiões) — sempre visível */}
+              {/* Filtro em cards (regiões) */}
               <View style={{ marginTop: 16 }}>
-                <FilterBarRN selectedRegion={filters.region ?? ""} onApply={handleApply} />
+                <FilterBarRN
+                  selectedRegion={filters.region ?? ""}
+                  onApply={handleApply}
+                />
               </View>
 
               {/* Loading x Conteúdo */}
               {eventsLoading ? (
-                <View style={{ marginTop: 24, alignItems: "center", justifyContent: "center" }}>
-                  <ActivityIndicator size="small" color="#f97316" />
-                  <Text style={{ marginTop: 8, color: "#64748b" }}>{t("loading")}</Text>
+                <View
+                  style={{
+                    marginTop: 24,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <ActivityIndicator
+                    size="small"
+                    color="#f97316"
+                  />
+                  <Text style={{ marginTop: 8, color: "#64748b" }}>
+                    {t("loading")}
+                  </Text>
                 </View>
               ) : (
                 <>
                   {/* Para você */}
                   {eventsForYou.length > 0 && (
                     <View style={{ marginTop: 24 }}>
-                      <View className="row" style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>{t("events_for_you")}</Text>
+                      <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>
+                          {t("events_for_you")}
+                        </Text>
                         <TouchableOpacity
                           style={styles.seeAllRow}
                           onPress={() => router.push("/paraVoce")}
                         >
-                          <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
-                          <Feather name="chevron-right" size={16} color="#f97316" />
+                          <Text style={styles.seeAll}>
+                            {t("quick_view_all")}
+                          </Text>
+                          <Feather
+                            name="chevron-right"
+                            size={16}
+                            color="#f97316"
+                          />
                         </TouchableOpacity>
                       </View>
 
@@ -481,23 +664,34 @@ export default function Home() {
                           ...e,
                           imageUrl: e.imageUrl ?? "",
                         }))}
-                        isLoggedIn={isLoggedIn}
-                        onLoginPress={onLoginPress}
+
+                      isLoggedIn={isLoggedIn}
+                      onLoginPress={onLoginPress}
                       />
                     </View>
                   )}
 
-                  {/* Música (exclui Para você) */}
+                  {/* Música */}
                   {musicDatedRender.length > 0 && (
                     <View style={{ marginTop: 24 }}>
                       <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>{t("music_events")}</Text>
+                        <Text style={styles.sectionTitle}>
+                          {t("music_events")}
+                        </Text>
                         <TouchableOpacity
                           style={styles.seeAllRow}
-                          onPress={() => router.push("/allMusic" as any)}
+                          onPress={() =>
+                            router.push("/allMusic" as any)
+                          }
                         >
-                          <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
-                          <Feather name="chevron-right" size={16} color="#f97316" />
+                          <Text style={styles.seeAll}>
+                            {t("quick_view_all")}
+                          </Text>
+                          <Feather
+                            name="chevron-right"
+                            size={16}
+                            color="#f97316"
+                          />
                         </TouchableOpacity>
                       </View>
 
@@ -505,7 +699,9 @@ export default function Home() {
                         barbershops={musicDatedRender.map((e) => ({
                           ...e,
                           imageUrl: e.imageUrl ?? "",
-                          categories: Array.isArray(e.categories) ? e.categories : [],
+                          categories: Array.isArray(e.categories)
+                            ? e.categories
+                            : [],
                         }))}
                         isLoggedIn={isLoggedIn}
                         onLoginPress={onLoginPress}
@@ -514,17 +710,27 @@ export default function Home() {
                     </View>
                   )}
 
-                  {/* Mais Eventos (exclui Para você) */}
+                  {/* Mais Eventos */}
                   {nonMusicDatedRender.length > 0 && (
                     <View style={{ marginTop: 24 }}>
                       <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>{t("more_events")}</Text>
+                        <Text style={styles.sectionTitle}>
+                          {t("more_events")}
+                        </Text>
                         <TouchableOpacity
                           style={styles.seeAllRow}
-                          onPress={() => router.push("/maisVisitados" as any)}
+                          onPress={() =>
+                            router.push("/maisVisitados" as any)
+                          }
                         >
-                          <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
-                          <Feather name="chevron-right" size={16} color="#f97316" />
+                          <Text style={styles.seeAll}>
+                            {t("quick_view_all")}
+                          </Text>
+                          <Feather
+                            name="chevron-right"
+                            size={16}
+                            color="#f97316"
+                          />
                         </TouchableOpacity>
                       </View>
 
@@ -540,7 +746,7 @@ export default function Home() {
                     </View>
                   )}
 
-                  {/* Eventos do dia a dia (exclui Para você) */}
+                  {/* Eventos do dia a dia */}
                   {fixedRender.length > 0 && (
                     <View style={{ marginTop: 24 }}>
                       <View style={styles.sectionHeader}>
@@ -549,10 +755,18 @@ export default function Home() {
                         </Text>
                         <TouchableOpacity
                           style={styles.seeAllRow}
-                          onPress={() => router.push("/allnoDate" as any)}
+                          onPress={() =>
+                            router.push("/allnoDate" as any)
+                          }
                         >
-                          <Text style={styles.seeAll}>{t("quick_view_all")}</Text>
-                          <Feather name="chevron-right" size={16} color="#f97316" />
+                          <Text style={styles.seeAll}>
+                            {t("quick_view_all")}
+                          </Text>
+                          <Feather
+                            name="chevron-right"
+                            size={16}
+                            color="#f97316"
+                          />
                         </TouchableOpacity>
                       </View>
 
@@ -561,7 +775,9 @@ export default function Home() {
                         events={fixedRender.map((e) => ({
                           ...e,
                           imageUrl: e.imageUrl ?? "",
-                          categories: Array.isArray(e.categories) ? e.categories : [],
+                          categories: Array.isArray(e.categories)
+                            ? e.categories
+                            : [],
                         }))}
                         isLoggedIn={isLoggedIn}
                         onLoginPress={onLoginPress}
@@ -569,33 +785,42 @@ export default function Home() {
                     </View>
                   )}
 
-                  {/* Mapa */}
-                  <View style={{ marginTop: 24 }}>
-                    <Text style={styles.sectionTitle}>{t("events_map")}</Text>
-                    <View style={{ marginTop: 12 }}>
-                      <MapRJ
-                        events={mapData}
-                        onPressItem={(id) =>
-                          router.push({ pathname: "/barbershop/[id]", params: { id } })
-                        }
-                        isInteractive={mapInteractive}
-                        onInteractionChange={(enabled) => {
-                          setMapInteractive(enabled);
-                          setListScrollEnabled(!enabled);
-                        }}
-                        loading={eventsLoading}
-                        emptyMessage={t("no_events")}
-                        fitOnDataChange
-                        regionSelected={filters.region ?? ""}
-                      />
-                    </View>
+                  {/* Mapa (full-bleed) */}
+                  <View
+                    style={{
+                      marginTop: 24,
+                      marginHorizontal: -16,
+                    }}
+                  >
+                    <MapTeaserCard
+                      title={
+                        t("view_map_title") || "Ver mapa de eventos"
+                      }
+                      subtitle={
+                        t("view_map_sub") ||
+                        "Descubra eventos por região e bairro"
+                      }
+                      onPress={() =>
+                        router.push(
+                          `/MapRJ?region=${encodeURIComponent(
+                            filters.region ?? "",
+                          )}`,
+                        )
+                      }
+                      height={100}
+                    />
                   </View>
 
                   {/* Calendário */}
                   <View style={{ marginTop: 24 }}>
-                    <Text style={styles.sectionTitle}>{t("events_calendar")}</Text>
+                    <Text style={styles.sectionTitle}>
+                      {t("events_calendar")}
+                    </Text>
                     <View style={{ marginTop: 16 }}>
-                      <Calendar region={filters.region ?? ""} />
+                      <Calendar
+                        region={filters.region ?? ""}
+                        externalEvents={externalEvents}
+                      />
                     </View>
                   </View>
                 </>
@@ -641,8 +866,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   quickSearchTitle: { fontSize: 18, fontWeight: "600", color: "#333" },
-  seeAll: { fontSize: 14, color: "#f97316" },
-  seeAllRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  seeAll: { fontSize: 14, color: "#f97316", marginRight: 6 },
+  seeAllRow: { flexDirection: "row", alignItems: "center" },
 
   quickSearchContainerRow: { paddingRight: 16, marginBottom: 8 },
   quickOption: {
@@ -660,6 +885,11 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  quickImage: { width: 32, height: 32, marginBottom: 8, resizeMode: "contain" },
+  quickImage: {
+    width: 32,
+    height: 32,
+    marginBottom: 8,
+    resizeMode: "contain",
+  },
   quickText: { fontSize: 14, color: "#444", textAlign: "center" },
 });

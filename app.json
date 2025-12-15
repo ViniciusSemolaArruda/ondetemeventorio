@@ -4,18 +4,23 @@
     "slug": "ondetemeventorio",
     "version": "1.0.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "icon": "./assets/images/logo01.png",
 
+    
     "splash": {
-      "image": "./assets/icons/pin-1200x1200.png",
-      "backgroundColor": "#ffffff",
-      "resizeMode": "contain"
+      "image": "./assets/icons/PinBrancoGrande.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF7400"
     },
 
     "android": {
       "package": "com.capadocia.ondetemeventorio",
       "edgeToEdgeEnabled": true,
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/adaptive-foreground-432.png",
         "backgroundColor": "#ffffff"
@@ -23,7 +28,21 @@
       "config": {
         "googleMaps": { "apiKey": "AIzaSyByyTBGR1rWcchXSR59JOVVG2IszfmpeVI" }
       },
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+
+     
+      "splash": {
+        "image": "./assets/icons/PinBranco.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FF7400"
+      }
+    },
+
+    
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#FF7400",
+      "translucent": false
     },
 
     "plugins": [
@@ -31,9 +50,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icons/pin-1200x1200.png",
-          "backgroundColor": "#ffffff",
-          "resizeMode": "contain"
+          "image": "./assets/icons/PinBrancoGrande.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FF7400"
         }
       ],
       "expo-web-browser",

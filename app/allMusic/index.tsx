@@ -41,6 +41,7 @@ const MUSIC_CATEGORIES = [
   "Rock",
   "Blues",
   "Jazz",
+  "Sertanejo",
   "Chorinho",
 ] as const;
 const MUSIC_SET = new Set<string>(MUSIC_CATEGORIES as readonly string[]);

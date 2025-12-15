@@ -2,6 +2,7 @@ import { uploadImageToCloudinary } from "@/utils/uploadImage"
 import * as ImagePicker from "expo-image-picker"
 import React, { useEffect, useState } from "react"
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -17,6 +18,7 @@ interface Props {
 
 const EventImageUpload = ({ onFileSelect, existingUrl }: Props) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   const pickImage = async () => {
     try {
@@ -35,14 +37,20 @@ const EventImageUpload = ({ onFileSelect, existingUrl }: Props) => {
           return
         }
 
-        Alert.alert("Aguarde", "Enviando imagem para o servidor...")
+        // começa o upload → mostra loading
+        setIsUploading(true)
 
         const cloudinaryUrl = await uploadImageToCloudinary(asset.uri)
+
         setPreviewUrl(cloudinaryUrl)
         onFileSelect(cloudinaryUrl)
+
+        // terminou o upload → esconde loading
+        setIsUploading(false)
       }
     } catch (err) {
       console.error("Erro ao selecionar imagem:", err)
+      setIsUploading(false)
       Alert.alert("Erro", "Não foi possível carregar a imagem.")
     }
   }
@@ -63,7 +71,7 @@ const EventImageUpload = ({ onFileSelect, existingUrl }: Props) => {
         ⚠️ Imagens com corte inadequado podem ser motivo para a não aprovação do evento.
       </Text>
 
-      <Pressable style={styles.uploadArea} onPress={pickImage}>
+      <Pressable style={styles.uploadArea} onPress={isUploading ? undefined : pickImage}>
         {!previewUrl ? (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>Clique para selecionar a imagem</Text>
@@ -73,6 +81,13 @@ const EventImageUpload = ({ onFileSelect, existingUrl }: Props) => {
           </View>
         ) : (
           <Image source={{ uri: previewUrl }} style={styles.preview} resizeMode="cover" />
+        )}
+
+        {isUploading && (
+          <View style={styles.overlay}>
+            <ActivityIndicator size="small" />
+            <Text style={styles.overlayText}>Enviando imagem...</Text>
+          </View>
         )}
       </Pressable>
     </View>
@@ -107,6 +122,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
+    position: "relative",
   },
   placeholder: {
     alignItems: "center",
@@ -126,6 +142,18 @@ const styles = StyleSheet.create({
   preview: {
     width: "100%",
     height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayText: {
+    marginTop: 8,
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "500",
   },
 })
 

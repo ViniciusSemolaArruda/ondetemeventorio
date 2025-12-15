@@ -45,12 +45,14 @@ const CARD_FILES: Record<string, any> = {
   "rock-gpt.png": require("../../assets/icons/rock-gpt.png"),
   "blues-gpt.png": require("../../assets/icons/blues-gpt.png"),
   "jazz-gpt.png": require("../../assets/icons/jazz-gpt.png"),
+  "sertanejo-gpt.png": require("../../assets/icons/sertanejo-gpt.png"),
   "chorinho-gpt.png": require("../../assets/icons/chorinho-gpt.png"),
   "festivais-gpt.png": require("../../assets/icons/festivais-gpt.png"),
   "festas-gpt.png": require("../../assets/icons/festas-gpt.png"),
   "boate-gpt.png": require("../../assets/icons/boate-gpt.png"),
   "parques-gpt.png": require("../../assets/icons/parques-gpt.png"),
   "bar-gpt.png": require("../../assets/icons/bar-gpt.png"),
+  "gastronomia-gpt.png": require("../../assets/icons/gastronomia-gpt.png"),
   "restaurantes-gpt.png": require("../../assets/icons/restaurantes-gpt.png"),
   "cristo_redentor_card_size.png": require("../../assets/icons/cristo_redentor_card_size.png"),
   "cinema-gpt.png": require("../../assets/icons/cinema-gpt.png"),
@@ -58,19 +60,23 @@ const CARD_FILES: Record<string, any> = {
   "standup-gpt.png": require("../../assets/icons/standup-gpt.png"),
   "familia-gpt.png": require("../../assets/icons/familia-gpt.png"),
   "esporte3-gpt.png": require("../../assets/icons/esporte3-gpt.png"),
-  "gastronomia-gpt.png": require("../../assets/icons/gastronomia-gpt.png"),
   "feiras-gpt.png": require("../../assets/icons/feiras-gpt.png"),
+  "nautica-gpt.png": require("../../assets/icons/nautica-gpt.png"),
   "seminario-gpt.png": require("../../assets/icons/seminario-gpt.png"),
   "simposio-gpt.png": require("../../assets/icons/simposio-gpt.png"),
   "ambiente-gpt.png": require("../../assets/icons/ambiente-gpt.png"),
   "agro-gpt.png": require("../../assets/icons/agro-gpt.png"),
+
+  // ✅ novos para Infantil e Pets
+  "infantil-gpt.png": require("../../assets/icons/infantil-gpt.png"),
+  "pets-gpt.png": require("../../assets/icons/pets-gpt.png"),
 };
 const CARD_FILES_LC: Record<string, any> = Object.fromEntries(
   Object.keys(CARD_FILES).map((k) => [k.toLowerCase(), CARD_FILES[k]])
 );
 const FALLBACK = require("../../assets/icons/show.png");
 const NAME_ALIASES: Record<string, string> = {
-  "chorinho-gpt.png": "chorinho-gpt.png",
+  "chorinhi-gpt.png": "chorinhi-gpt.png",
 };
 
 function resolveImageSource(imageUrl: string): ImageSourcePropType {
@@ -138,7 +144,9 @@ export default function ColecoesScreen() {
               activeOpacity={0.85}
               onPress={() =>
                 router.push(
-                  `/barbershops?service=${encodeURIComponent(serviceValue)}` as Href
+                  `/barbershops?service=${encodeURIComponent(
+                    serviceValue
+                  )}` as Href
                 )
               }
             >
@@ -167,7 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#eee", // card continua com base clara
+    backgroundColor: "#eee",
   },
   image: {
     ...StyleSheet.absoluteFillObject,

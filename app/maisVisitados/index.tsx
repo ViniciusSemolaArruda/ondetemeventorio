@@ -32,7 +32,7 @@ const BG = "#f2f2f2";
 /** mesmas categorias musicais usadas no seu carrossel */
 const MUSIC_CATEGORIES = new Set<string>([
   "Carnaval","Rodas de Samba","Bossa Nova","Passinho","Funk","Eletrônica",
-  "Forró","MPB","Rock","Blues","Jazz","Chorinho",
+  "Forró","MPB","Rock","Blues","Jazz","Chorinho","Sertanejo",
 ]);
 
 // helper p/ validar datas (evita NaN)
