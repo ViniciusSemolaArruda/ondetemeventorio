@@ -14,12 +14,7 @@ import {
 } from "react-native"
 
 import MapView from "react-native-map-clustering"
-import {
-  Marker,
-  PROVIDER_GOOGLE,
-  Region,
-  UrlTile,
-} from "react-native-maps"
+import { Marker, PROVIDER_GOOGLE, UrlTile, type Region } from "react-native-maps"
 
 import FilterBarRN from "@/components/FilterBarRN"
 import { useI18n } from "@/context/I18nContext"
@@ -153,12 +148,13 @@ const PIN_CONTAINER_SIZE = 32
 const PIN_WIDTH = 24
 const PIN_HEIGHT = 28
 
-const CLUSTER_CONTAINER_SIZE = 48 // view que o Maps “fotografa”
-const CLUSTER_SIZE = 36 // círculo laranja dentro da view
+// ===== CLUSTER (anti-corte, sem mudar o tamanho do círculo) =====
+const CLUSTER_SIZE = 28 // círculo laranja (mantém o mesmo tamanho)
+const CLUSTER_SAFE_PADDING = 10 // margem invisível anti-corte
+const CLUSTER_CONTAINER_SIZE = CLUSTER_SIZE + CLUSTER_SAFE_PADDING * 2
 
 // tolerância para comparar coordenadas de eventos / cluster
 const COORD_TOLERANCE = 0.0002 // ~20m
-
 function isClose(a: number, b: number, tol = COORD_TOLERANCE) {
   return Math.abs(a - b) <= tol
 }
@@ -173,16 +169,14 @@ export default function MapRJPage() {
   const { region: regionParam } = useLocalSearchParams<{ region?: string }>()
 
   const initialRegion = (regionParam as string) || ""
+const [selectedRegion, setSelectedRegion] = useState<RjRegion | "">(
+  (initialRegion as RjRegion) || DEFAULT_REGION_KEY,
+)
 
-  const [selectedRegion, setSelectedRegion] = useState<RjRegion | "">(
-    (initialRegion as RjRegion) ?? "",
-  )
   const [loading, setLoading] = useState(true)
   const [eventsAll, setEventsAll] = useState<EventMapItem[]>([])
   const [selectedEvent, setSelectedEvent] = useState<EventMapItem | null>(null)
-  const [clusterEvents, setClusterEvents] = useState<EventMapItem[] | null>(
-    null,
-  )
+  const [clusterEvents, setClusterEvents] = useState<EventMapItem[] | null>(null)
 
   const [mapReady, setMapReady] = useState(false)
 
@@ -190,10 +184,15 @@ export default function MapRJPage() {
   const mapRef = useRef<any>(null)
 
   useEffect(() => {
-    setSelectedRegion(((regionParam as string) as RjRegion) ?? "")
-    setSelectedEvent(null)
-    setClusterEvents(null)
-  }, [regionParam])
+  const rp = (regionParam as string) || ""
+  if (rp.trim()) {
+    setSelectedRegion(rp as RjRegion)
+  } else {
+    setSelectedRegion(DEFAULT_REGION_KEY) // ✅ padrão sempre
+  }
+  setSelectedEvent(null)
+  setClusterEvents(null)
+}, [regionParam])
 
   /* ===========================
      Buscar eventos da API (só aprovados),
@@ -259,7 +258,7 @@ export default function MapRJPage() {
         longitude: n.lng,
       }))
 
-      const t = setTimeout(() => {
+      const tt = setTimeout(() => {
         try {
           map.fitToCoordinates(coords, {
             edgePadding: MAP_EDGE_PADDING,
@@ -267,38 +266,30 @@ export default function MapRJPage() {
           })
         } catch (e) {
           console.warn("fitToCoordinates falhou, usando região padrão:", e)
-          const key: RjRegion =
-            (selectedRegion as RjRegion) || DEFAULT_REGION_KEY
+          const key: RjRegion = (selectedRegion as RjRegion) || DEFAULT_REGION_KEY
           const fallback = REGION_DEFAULTS[key] ?? DEFAULT_REGION
           map.animateToRegion(fallback, 250)
         }
       }, 120)
 
-      return () => clearTimeout(t)
+      return () => clearTimeout(tt)
     } else {
-      const key: RjRegion =
-        (selectedRegion as RjRegion) || DEFAULT_REGION_KEY
+      const key: RjRegion = (selectedRegion as RjRegion) || DEFAULT_REGION_KEY
       const fallbackRegion = REGION_DEFAULTS[key] ?? DEFAULT_REGION
       map.animateToRegion(fallbackRegion, 250)
     }
   }, [events, loading, selectedRegion, mapReady])
 
   const providerProp =
-    Platform.OS === "android" || Platform.OS === "ios"
-      ? PROVIDER_GOOGLE
-      : undefined
+    Platform.OS === "android" || Platform.OS === "ios" ? PROVIDER_GOOGLE : undefined
 
   // Quando clica no cluster: abre lista de eventos daquele ponto
   const handleClusterPress = (cluster: any) => {
     try {
       const [lng, lat] = cluster?.geometry?.coordinates ?? []
-      if (typeof lat !== "number" || typeof lng !== "number") {
-        return
-      }
+      if (typeof lat !== "number" || typeof lng !== "number") return
 
-      const items = events.filter(
-        (ev) => isClose(ev.lat, lat) && isClose(ev.lng, lng),
-      )
+      const items = events.filter((ev) => isClose(ev.lat, lat) && isClose(ev.lng, lng))
 
       if (items.length === 0) {
         cluster?.onPress?.()
@@ -336,10 +327,11 @@ export default function MapRJPage() {
         onPress={() => handleClusterPress(cluster)}
         anchor={{ x: 0.5, y: 0.5 }}
       >
+        {/* Wrapper maior (canvas invisível) evita cortar círculo/sombra em QUALQUER device */}
         <View
           style={styles.clusterWrapper}
-          renderToHardwareTextureAndroid
           collapsable={false}
+          renderToHardwareTextureAndroid
         >
           <View style={styles.clusterBubble}>
             <Text style={styles.clusterText}>{pointCount}</Text>
@@ -361,9 +353,7 @@ export default function MapRJPage() {
           <ChevronLeft size={24} color="#111827" />
         </TouchableOpacity>
 
-        <Text style={styles.title}>
-          {t("events_map") || "Mapa de Eventos"}
-        </Text>
+        <Text style={styles.title}>{t("events_map") || "Mapa de Eventos"}</Text>
 
         <TouchableOpacity
           style={styles.headerBtn}
@@ -384,13 +374,14 @@ export default function MapRJPage() {
       <View style={styles.filterWrap}>
         <View style={styles.filterBox}>
           <FilterBarRN
-            selectedRegion={selectedRegion}
-            onApply={(q) => {
-              setSelectedRegion((q.region as RjRegion) ?? "")
-              setSelectedEvent(null)
-              setClusterEvents(null)
-            }}
-          />
+  selectedRegion={selectedRegion}
+  defaultRegion={DEFAULT_REGION_KEY}
+  onApply={(q) => {
+    setSelectedRegion((q.region as RjRegion) ?? DEFAULT_REGION_KEY)
+    setSelectedEvent(null)
+    setClusterEvents(null)
+  }}
+/>
         </View>
       </View>
 
@@ -435,14 +426,10 @@ export default function MapRJPage() {
             >
               <View
                 style={styles.pinWrapper}
-                renderToHardwareTextureAndroid
                 collapsable={false}
+                renderToHardwareTextureAndroid
               >
-                <Image
-                  source={pinIcon}
-                  style={styles.pinImage}
-                  resizeMode="contain"
-                />
+                <Image source={pinIcon} style={styles.pinImage} resizeMode="contain" />
               </View>
             </Marker>
           ))}
@@ -461,10 +448,7 @@ export default function MapRJPage() {
               </TouchableOpacity>
 
               {!!selectedEvent.imageUrl && (
-                <Image
-                  source={{ uri: selectedEvent.imageUrl }}
-                  style={styles.modalImage}
-                />
+                <Image source={{ uri: selectedEvent.imageUrl }} style={styles.modalImage} />
               )}
 
               <View style={styles.modalContent}>
@@ -502,7 +486,6 @@ export default function MapRJPage() {
         {clusterEvents && (
           <View style={styles.modalOverlay}>
             <View style={styles.clusterModalCard}>
-              {/* header alinhando título + X */}
               <View style={styles.clusterHeader}>
                 <Text style={styles.clusterModalTitle}>
                   {t("map_cluster_events") || "Eventos neste local"}
@@ -531,20 +514,14 @@ export default function MapRJPage() {
                     }}
                   >
                     {!!ev.imageUrl && (
-                      <Image
-                        source={{ uri: ev.imageUrl }}
-                        style={styles.clusterItemImage}
-                      />
+                      <Image source={{ uri: ev.imageUrl }} style={styles.clusterItemImage} />
                     )}
                     <View style={styles.clusterItemTextBox}>
                       <Text style={styles.clusterItemTitle} numberOfLines={2}>
                         {ev.name}
                       </Text>
                       {!!ev.address && (
-                        <Text
-                          style={styles.clusterItemAddress}
-                          numberOfLines={2}
-                        >
+                        <Text style={styles.clusterItemAddress} numberOfLines={2}>
                           {ev.address}
                         </Text>
                       )}
@@ -566,9 +543,7 @@ export default function MapRJPage() {
         {/* Vazio */}
         {!loading && events.length === 0 && (
           <View style={styles.emptyOverlay} pointerEvents="none">
-            <Text style={styles.emptyText}>
-              {t("no_events") || "Sem eventos para exibir."}
-            </Text>
+            <Text style={styles.emptyText}>{t("no_events") || "Sem eventos para exibir."}</Text>
           </View>
         )}
       </View>
@@ -634,19 +609,30 @@ const styles = StyleSheet.create({
     height: PIN_CONTAINER_SIZE,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "transparent",
   },
   pinImage: {
     width: PIN_WIDTH,
     height: PIN_HEIGHT,
   },
 
-  // Cluster bubble
+  // ===== CLUSTER (anti-corte) =====
+  // Wrapper maior (canvas invisível) -> impede cortar círculo/borda/sombra em qualquer device
   clusterWrapper: {
     width: CLUSTER_CONTAINER_SIZE,
     height: CLUSTER_CONTAINER_SIZE,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "transparent",
+
+    // Se ainda cortar, deixe a sombra AQUI e tire do clusterBubble
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
   },
+
   clusterBubble: {
     width: CLUSTER_SIZE,
     height: CLUSTER_SIZE,
@@ -656,12 +642,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 3,
     borderColor: "#ffffff",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
   },
+
   clusterText: {
     color: "#ffffff",
     fontWeight: "700",

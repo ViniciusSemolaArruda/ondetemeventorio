@@ -84,6 +84,8 @@ const ICONS: Record<string, any> = {
 
   "/planeta-terra.png": require("../assets/icons/planeta-terra.png"),
   "/agricultura.png": require("../assets/icons/agricultura.png"),
+  
+  "/hotel.png": require("../assets/icons/hotel.png"),
 };
 
 

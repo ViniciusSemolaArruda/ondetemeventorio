@@ -75,7 +75,9 @@ const ICONS: Record<string, any> = {
 
   // ✅ novos
   "/alfabeto.png": require("../assets/icons/alfabeto.png"),
-  "/pata.png": require("../assets/icons/pata.png"),
+  "/pata.png": require("../assets/icons/pata.png"),   
+  
+  "/hotel.png": require("../assets/icons/hotel.png"),
 };
 
 

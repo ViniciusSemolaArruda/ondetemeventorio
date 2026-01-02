@@ -1,5 +1,6 @@
 // app/_constants/search2.ts
 
+
 /** Mapa i18n -> valor exatamente como salvo no BD (categories: string[]) */
 export const KEY_TO_DB = {
   cat_carnaval: "Carnaval",
@@ -25,6 +26,7 @@ export const KEY_TO_DB = {
   cat_cultural: "Cinema",
   cat_esportes: "Esportes",
   cat_gastronomia: "Gastronomia",
+  cat_hotel: "Hotel",
   cat_feiras: "Feiras",
   cat_nautica: "Náutica",
   cat_seminarios: "Seminários",
@@ -80,6 +82,11 @@ export const quickSearchOptions: QuickSearchOption[] = [
     imageUrl: "/gastronomia-gpt.png",
     key: "cat_gastronomia",
     title: "Gastronomia",
+  },
+  {
+    imageUrl: "/hotel-gpt.png",
+    key: "cat_hotel",
+    title: "Hotel",
   },
   {
     imageUrl: "/restaurantes-gpt.png",

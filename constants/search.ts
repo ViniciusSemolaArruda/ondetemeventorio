@@ -23,6 +23,7 @@ export const KEY_TO_DB = {
   cat_cultural: "Cinema",
   cat_esportes: "Esportes",
   cat_gastronomia: "Gastronomia",
+  cat_hotel: "Hotel",
   cat_feiras: "Feiras",
   cat_nautica: "Náutica",
   cat_seminarios: "Seminários",
@@ -73,6 +74,11 @@ export const quickSearchOptions: QuickSearchOption[] = [
     imageUrl: "/chefe-de-cozinha.png",
     key: "cat_gastronomia",
     title: "Gastronomia",
+  },
+  {
+    imageUrl: "/hotel.png",
+    key: "cat_hotel",
+    title: "Hotel",
   },
   {
     imageUrl: "/restaurante.png",
